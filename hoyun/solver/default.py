@@ -25,12 +25,7 @@ arr = arr32 | arr64
 def get_acceleration(
     weighted_adjacency_matrix: arr, params: arr, phase: arr, dphase: arr
 ) -> arr:
-    """
-    weighted adjacency matrix: (N, N)
-    params: (3, ) power, gamma, mass
-    phase: (N, )
-    dphase: (N, )
-    """
+    """ params: (3, N) power, gamma, mass """
 
     # Interaction
     sin_phase, cos_phase = np.sin(phase), np.cos(phase)
@@ -146,8 +141,14 @@ def rk4(
 def rk4(
     weighted_adjacency_matrix: arr, params: arr, phase: arr, dphase: arr, dt: arr
 ) -> tuple[arr, arr]:
-    """Return next phase, next dphase"""
+    """
+    Return next phase, next dphase
 
+    weighted adjacency matrix: (N, N)
+    params: (3, N) power, gamma, mass
+    phase: (N, )
+    dphase: (N, )
+    """
     acceleration1 = get_acceleration(weighted_adjacency_matrix, params, phase, dphase)
     velocity1 = dphase
 

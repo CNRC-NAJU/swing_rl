@@ -65,7 +65,7 @@ def edge_list_2_adjacency_matrix(
 
 @overload
 def get_weighted_adjacency_matrix(
-    graph: nx.Graph, weights: arr32 | float | None
+    graph: nx.Graph, weights: arr32 | float | None = None
 ) -> arr32:
     ...
 
@@ -96,7 +96,7 @@ def get_weighted_adjacency_matrix(
 
 @overload
 def get_weighted_laplacian_matrix(
-    graph: nx.Graph, weights: arr32 | float | None
+    graph: nx.Graph, weights: arr32 | float | None = None
 ) -> arr32:
     ...
 
