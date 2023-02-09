@@ -4,6 +4,7 @@ from typing import cast, overload
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+import torch
 
 arr32 = npt.NDArray[np.float32]
 arr64 = npt.NDArray[np.float64]
@@ -111,3 +112,11 @@ def get_weighted_laplacian_matrix(
 ):
     weighted_adj_matrix = get_weighted_adjacency_matrix(graph, weights)
     return np.diag(np.sum(weighted_adj_matrix, axis=0)) - weighted_adj_matrix
+
+
+def directed2undirected(edge_list: npt.NDArray[np.int64], device: torch.device | None = None) -> torch.Tensor:
+    """Get directed edge list of shape (E, 2),
+    Return undirected edge index of shape (2, E), for torch_geometric"""
+    return torch.tensor(
+        np.concatenate([edge_list, edge_list[:, [1, 0]]]), device=device
+    ).T  # pyright: ignore

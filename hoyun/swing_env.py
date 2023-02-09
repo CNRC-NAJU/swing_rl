@@ -1,14 +1,20 @@
 """ TODO
 - fail된 노드들은 power와 mass를 0으로 만들고, 그대로 swing equation에 참여시킨다.
 그러면 해당 노드의 acceleration을 계산할 때 mass로 나누어야 하기 때문에 zero division...?
+=> mass를 1e-3 수준?
 + 속도가 다시 threshold를 넘어가는 상황은 발생하지 않는가?
+=> 무시
 
 - fail된 노드의 gamma는 그대로 놔두는가?
+=> fail 되었다는 것이 어떤것인지.
 
 - 현재는 deterministic한 action
+=> Train 할때는 각 generator의 weight에 따른 Bernoulli 분포에서 뽑은 다음 weight에 따라 rebalance
+   Validation/Test 할 때는 살아있는 모든 generator들이 weight에 따라 rebalance
 
 - agent에게 넘기는 정보는 fail되기 직전의 power/mass/gamma + 어떤 노드가 fail 되는지
                    혹은 fail된 후 0으로 바뀐 power/mass + 어떤 노드가 fail 되었는지
+=> 전자
 """
 
 import functools
@@ -37,7 +43,7 @@ class SwingEnv(gym.Env):
         solver_name: str = "rk4",
         threshold: float = 1e-2,
         equilibrium_step: int = 1000,
-        seed: int | None = None
+        seed: int | None = None,
     ) -> None:
         """
         swing_data: swing data
@@ -128,12 +134,12 @@ class SwingEnv(gym.Env):
         # Randomly fail single node as external perturbation
         self.failed = np.zeros(self.num_nodes, dtype=np.bool_)
         self.failed_at_this_step = np.zeros(self.num_nodes, dtype=np.bool_)
-        self._randomly_fail_node()
+        self._randomly_mark_failed_node()
 
         # RL variables
         self.action_space = spaces.Box(
             -1.0, 1.0, shape=(self.num_nodes,), dtype=np.float32
-        )  # power rebalancing couplings for each node
+        )  # power rebalancing weight for each node
         self.observation_space = spaces.Dict(
             {
                 "phase": spaces.Box(
@@ -163,16 +169,16 @@ class SwingEnv(gym.Env):
         reward: number of failed nodes
         terminated: True if number of swing solver step is self.equilibrium
         """
-        # Rebalance power
-        self._rebalance_power(action)
-
         # Fail the node
         self._fail_nodes(self.failed_at_this_step)
 
+        # Rebalance power
+        self._rebalance_power(action)
+
         # Run swing equation until equilibrium / next failure
-        step = 0
+        simulation_step = 0
         params = np.stack([self.power, self.gamma, self.mass])
-        for step in range(self.equilibrium_step):
+        for simulation_step in range(self.equilibrium_step):
             self.phase, self.dphase = self.step_solver(params, self.phase, self.dphase)
 
             # Get currently failed nodes whether they are failed before or not
@@ -193,11 +199,18 @@ class SwingEnv(gym.Env):
             "power": self.power,
             "gamma": self.gamma,
             "mass": self.mass,
-            "step": step,
+            "step": simulation_step,
             "failed_at_this_step": self.failed_at_this_step,
         }
-        reward = np.sum(self.dphase).item()
-        terminated = step == self.equilibrium_step - 1
+
+        # Reward is number of failed nodes
+        reward = self.failed_at_this_step.sum(dtype=np.float32).item()
+
+        # When reching equlibrium or all generators are failed
+        num_active_generators = (~self.failed * self.is_generator).sum()
+        terminated = (
+            not num_active_generators or simulation_step == self.equilibrium_step - 1
+        )
 
         return observation, reward, terminated, {}
 
@@ -216,7 +229,7 @@ class SwingEnv(gym.Env):
         # Randomly fail single node as external perturbation
         self.failed = np.zeros(self.num_nodes, dtype=np.bool_)
         self.failed_at_this_step = np.zeros(self.num_nodes, dtype=np.bool_)
-        self._randomly_fail_node()
+        self._randomly_mark_failed_node()
 
         return {
             "phase": self.phase,
@@ -252,7 +265,7 @@ class SwingEnv(gym.Env):
 
     def _rebalance_power(self, action: arr32) -> None:
         # Normalize action from 0 to 1
-        action = 0.5 * (action + 1.0)
+        action = 0.5 * (action + 1.0) + 1e-6    # prevent from active generator action=0
 
         # Total fluctuation of power due to the failure
         power_fluctuation = np.sum(self.power[self.failed_at_this_step])
@@ -267,17 +280,18 @@ class SwingEnv(gym.Env):
 
     def _fail_nodes(self, failed_nodes: npt.NDArray[np.bool_]) -> None:
         self.power[failed_nodes] = 0.0
-        # self.mass[failed_nodes] = 0.0
+        self.mass[failed_nodes] = 1e-3
 
     def _get_failed_nodes(self, dphase: arr32) -> npt.NDArray[np.bool_]:
         return dphase > self.threshold
 
-    def _randomly_fail_node(self) -> None:
+    def _randomly_mark_failed_node(self) -> None:
         failed_node = self.rng.choice(self.num_nodes)
         self.failed[failed_node] = True
         self.failed_at_this_step[failed_node] = True
 
     @staticmethod
     def is_stable(dphase: arr32, eps: float = 1e-4) -> bool:
-        """Check if all dphase are smaller than eps"""
+        """Check if all dphase are smaller than eps
+        For float32 precision, 1e-4 is adequte"""
         return np.all(np.abs(dphase) < eps).item()
