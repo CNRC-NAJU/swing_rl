@@ -12,53 +12,54 @@ class GraphExtractor(BaseFeaturesExtractor):
     def __init__(
         self,
         observation_space: spaces.Dict,
-        features_dim: int ,
         edge_index: torch.Tensor,
         edge_attr: torch.Tensor,
-        hidden_dim: int = 32,
+        hidden_dim: int = 16,
     ):
-        super().__init__(observation_space, features_dim)
         # Store graph structure
         self.edge_index = edge_index  # (2, E)
         self.edge_attr = edge_attr  # (E, 1)
+        num_nodes = int(self.edge_index.amax()) + 1
+        super().__init__(observation_space, num_nodes * hidden_dim)
 
         self.conv1 = gnn.ChebConv(
-            6, hidden_dim, K=2
-        )  # phase, dphase, power, gamma, mass, failed_at_this_step
+            7, hidden_dim, K=2
+        )  # phase, dphase, power, gamma, mass, failed_at_this_step, step
         self.conv2 = gnn.ChebConv(hidden_dim, hidden_dim, K=2)
-        self.out = nn.Linear(hidden_dim + 1, 1)  # hidden+step
 
     def forward(self, observations: OrderedDict[str, torch.Tensor]) -> torch.Tensor:
-        num_nodes = observations["phase"].shape[-1]
-
+        # Convert SB3-format to GNN-format
+        num_batch, num_nodes = observations["phase"].shape
         failed_at_this_step = (
-            observations["failed_at_this_step"].reshape(1, num_nodes, 2).argmax(-1)
-        )
-        node_feature = torch.stack(
-            [
-                observations["phase"],  # (0, 2pi)
-                observations["dphase"],  # (-inf, inf)
-                observations["power"],  # (-inf, inf)
-                observations["gamma"],  # (0, inf)
-                observations["mass"],  # (0, inf)
-                failed_at_this_step,  # 0 or 1
-            ],
+            observations["failed_at_this_step"].reshape(-1, num_nodes, 2).argmax(-1)
+        )  # (B, N)
+        step = observations["step"].argmax(-1).repeat(1, num_nodes)  # (B, N)
+        node_feature = torch.stack(  # (BN, 7)
+            (
+                observations["phase"].flatten(),  # (BN, )
+                observations["dphase"].flatten(),  # (BN, )
+                observations["power"].flatten(),  # (BN, )
+                observations["gamma"].flatten(),  # (BN, )
+                observations["mass"].flatten(),  # (BN, )
+                failed_at_this_step.flatten(),  # (BN, )
+                step.flatten(),  # (BN, )
+            ),
             dim=-1,
-        ).squeeze()  # (N, 6)
-        step = observations["step"].argmax(-1).repeat(num_nodes, 1)  # (N, 1)
+        )
 
+        # GNN feature extraction
         node_hidden = F.gelu(
             self.conv1(
                 node_feature, edge_index=self.edge_index, edge_weight=self.edge_attr
             )
-        )  # (N, hidden_dim)
+        )  # (BN, hidden_dim)
+
         node_hidden = F.gelu(
             self.conv2(
                 node_hidden, edge_index=self.edge_index, edge_weight=self.edge_attr
             )
-        )  # (N, hidden_dim)
+        )  # (BN, hidden_dim)
 
-        node_hidden = torch.concat([node_hidden, step], dim=-1)  # (N, hidden_dim+1)
-
-        # x = torch.tanh(self.out(node_hidden)).T
-        return torch.tanh(self.out(node_hidden)).T  # (1, N), squeezed to (-1, 1)
+        # Convert GNN-format to SB3-format
+        # (B, feature_dim= N * hidden_dim), value squeezed to (-1, 1)
+        return torch.tanh(node_hidden).reshape(num_batch, -1)

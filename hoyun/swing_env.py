@@ -158,10 +158,7 @@ class SwingEnv(gym.Env):
             }
         )
 
-    def step(
-        self,
-        action: arr32,
-    ) -> tuple[dict[str, Any], float, bool, dict[str, Any]]:
+    def step(self, action: arr32) -> tuple[dict[str, Any], float, bool, dict[str, Any]]:
         """
         action: (N, ), value bounded from -1 to 1. power rebalancing weigths for each node
 
@@ -194,13 +191,13 @@ class SwingEnv(gym.Env):
 
         # Observe state
         observation: dict[str, Any] = {
-            "phase": self.phase % (2 * np.pi),
-            "dphase": self.dphase,
-            "power": self.power,
-            "gamma": self.gamma,
-            "mass": self.mass,
-            "step": simulation_step,
-            "failed_at_this_step": self.failed_at_this_step,
+            "phase": self.phase % (2 * np.pi),  # (N, )
+            "dphase": self.dphase,  # (N, )
+            "power": self.power,  # (N, )
+            "gamma": self.gamma,  # (N, )
+            "mass": self.mass,  # (N, )
+            "step": simulation_step,  #  integer
+            "failed_at_this_step": self.failed_at_this_step,  # (N, ) True or Talse
         }
 
         # Reward is number of failed nodes
@@ -265,7 +262,7 @@ class SwingEnv(gym.Env):
 
     def _rebalance_power(self, action: arr32) -> None:
         # Normalize action from 0 to 1
-        action = 0.5 * (action + 1.0) + 1e-6    # prevent from active generator action=0
+        action = 0.5 * (action + 1.0) + 1e-6  # prevent from active generator action=0
 
         # Total fluctuation of power due to the failure
         power_fluctuation = np.sum(self.power[self.failed_at_this_step])
