@@ -2,7 +2,6 @@ from collections import OrderedDict
 
 import gym.spaces as spaces
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch_geometric.nn as gnn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
