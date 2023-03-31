@@ -1,11 +1,15 @@
 from collections import OrderedDict
 
-import gym.spaces as spaces
+import gymnasium.spaces as spaces
 import torch
 import torch.nn.functional as F
 import torch_geometric.nn as gnn
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
+# Agent : GNN + FCN -> 이 중 GNN을 custom
+# PPO: agent를 훈련시키는 방법 -> custom 가능: stable baseline3 코드 : 최후의 수단
+# 1. GNN 잘 짜는 것 + observation + reward
+# 2. PPO 수정
 
 class GraphExtractor(BaseFeaturesExtractor):
     def __init__(

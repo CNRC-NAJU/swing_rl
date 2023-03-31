@@ -20,8 +20,10 @@
 import functools
 from typing import Any, Callable
 
-import gym
-import gym.spaces as spaces
+import gymnasium as gym
+import gymnasium.spaces as spaces
+# import gym
+# import gym.spaces as spaces
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
@@ -55,6 +57,7 @@ class SwingEnv(gym.Env):
         threshold: whether to check if node is failed
         equilibrium_step: If reaching the iteration step, consider the system as equilibrium
         """
+        super().__init__()
         # Random engine
         self.rng = np.random.default_rng(seed)
 
@@ -158,12 +161,13 @@ class SwingEnv(gym.Env):
             }
         )
 
-    def step(self, action: arr32) -> tuple[dict[str, Any], float, bool, dict[str, Any]]:
+    def step(self, action: arr32) -> tuple[dict[str, Any], float, bool, bool, dict[str, Any]]:
         """
         action: (N, ), value bounded from -1 to 1. power rebalancing weigths for each node
 
         Return: tuple of observation, reward, terminated, info
         reward: number of failed nodes
+        truncated: False?
         terminated: True if number of swing solver step is self.equilibrium
         """
         # Fail the node
@@ -209,9 +213,9 @@ class SwingEnv(gym.Env):
             not num_active_generators or simulation_step == self.equilibrium_step - 1
         )
 
-        return observation, reward, terminated, {}
+        return observation, reward, terminated, False, {}
 
-    def reset(self) -> dict[str, Any]:
+    def reset(self) -> tuple[dict[str, Any], dict[str, Any]]:
         """Reset environments and returns to the initial observation
         Initial observation: 0 steps until failure, all nodes are not failed
         """
@@ -236,7 +240,7 @@ class SwingEnv(gym.Env):
             "mass": self.mass,
             "step": 0,
             "failed_at_this_step": self.failed_at_this_step,
-        }
+        }, {}
 
     def render(self, mode: str = "human") -> None:
         if mode != "human":
