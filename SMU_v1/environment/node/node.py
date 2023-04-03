@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
+from .type import NodeType
+
 
 class Node(ABC):
     def __init__(self, max_units: int) -> None:
@@ -68,8 +70,9 @@ class Node(ABC):
     def ratio(self) -> float:
         return self.active_units / self.max_units
 
+    @property
     @abstractmethod
-    def __str__(self) -> str:
+    def type(self) -> NodeTypes:
         pass
 
     @property

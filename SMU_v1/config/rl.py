@@ -6,9 +6,9 @@ class RLConfig:
     # Number of perturbated nodes at each steps
     num_pertubation: int = 1
 
-    # Number of simulation steps
-    default_steady_steps: int = 10000
-    equilibrium_steps: int = 1000
+    # simulation time
+    steady_time: float = 10
+    equilibrium_time: float = 1
 
     # Stability of node
     stable_threshold: float = 1e-4
@@ -22,6 +22,14 @@ class RLConfig:
     reset_coupling: bool = False
     reset_node_type: bool = False
     reset_node: bool = False
+
+    # Reward
+    reward: str = "weighted_area"
+    failed_scale: float = 1.0
+
+    # Episode
+    steps_per_episode: int = 1000
+
 
     def __post_init__(self) -> None:
         assert self.rebalance in ["directed", "undirected"]
@@ -41,3 +49,5 @@ class RLConfig:
             assert (
                 self.reset_node
             ), f"When reset node type, you also need to reset entire nodes"
+
+        assert self.reward in ["area", "slope", "weighted_area"]

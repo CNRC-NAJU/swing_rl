@@ -1,23 +1,13 @@
+from .config import Config
 from .consumer import ConsumerConfig
 from .distribution import DistributionConfig
 from .generator import GeneratorConfig
 from .graph import GraphConfig
 from .grid import GridConfig
+from .observation import ObservationConfig
 from .renewable import RenewableConfig
-from .rk import RKConfig
 from .rl import RLConfig
+from .swing import SwingConfig
 
-
-def validate_config():
-    """Create each configuration once to validate their values"""
-    ConsumerConfig()
-    DistributionConfig()
-    GeneratorConfig()
-    GraphConfig()
-    GridConfig()
-    RenewableConfig()
-    RKConfig()
-    RLConfig()
-
-
-validate_config()
+# verify configurations
+Config()

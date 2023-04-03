@@ -6,6 +6,7 @@ import numpy as np
 from config import RenewableConfig
 
 from .node import Node
+from .type import NodeType
 
 Rng = np.random.Generator | int | None
 
@@ -15,10 +16,9 @@ class Renewable(Node):
         super().__init__(max_units)
         self.active_units = 0  # [0, max_units]
 
-        config = RenewableConfig()
-        self.unit_power = config.unit_power
+        self.unit_power = RenewableConfig.unit_power
         self.unit_mass = mass
-        self.unit_gamma = config.unit_gamma_mass_ratio * mass
+        self.unit_gamma = RenewableConfig.unit_gamma_mass_ratio * mass
 
     @classmethod
     def randomly_from_capacity(cls, capacity: int, rng: Rng) -> Renewable:
@@ -46,8 +46,9 @@ class Renewable(Node):
             raise NotImplementedError(f"No such distribution {mass_distribution.name}")
         return cls(capacity // config.unit_power, mass)
 
-    def __str__(self) -> str:
-        return "renewable"
+    @property
+    def type(self) -> NodeType:
+        return NodeType.RENEWABLE
 
     @property
     def power(self) -> int:

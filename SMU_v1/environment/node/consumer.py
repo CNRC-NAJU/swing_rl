@@ -6,6 +6,7 @@ import numpy as np
 from config import ConsumerConfig
 
 from .node import Node
+from .type import NodeType
 
 
 class Consumer(Node):
@@ -41,8 +42,9 @@ class Consumer(Node):
 
         return cls(max_units)
 
-    def __str__(self) -> str:
-        return "consumer"
+    @property
+    def type(self) -> NodeType:
+        return NodeType.CONSUMER
 
     @property
     def power(self) -> int:

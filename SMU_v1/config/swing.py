@@ -1,14 +1,17 @@
 from dataclasses import dataclass
 
-import numpy as np
-import numpy.typing as npt
-
 
 @dataclass
-class RKConfig:
-    # step size
-    dt: npt.NDArray[np.float32] = np.array(1e-3, dtype=np.float32)
+class SwingConfig:
+
+    # which solver to solve swing equation
+    # e.g., RK1: "rk1",  "rk1_original", "rk1_sparse"
+    #       RK2: "rk2",  "rk2_original", "rk2_sparse"
+    #       RK4: "rk4",  "rk4_original", "rk4_sparse"
     name: str = "rk4"
+
+    # step size
+    dt: float = 1e-3
 
     def __post__init__(self) -> None:
         assert self.name in [

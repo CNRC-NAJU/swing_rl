@@ -17,7 +17,7 @@ class GraphConfig:
     # shk parameters
     shk_p: float = 0.2
     shk_q: float = 0.3
-    shk_r: float = 1.0/3.0
+    shk_r: float = 0.3333
     shk_s: float = 0.1
     shk_initial: int = 1
 

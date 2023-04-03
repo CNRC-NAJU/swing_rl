@@ -30,7 +30,7 @@ class GridConfig:
             self.generator_num_ratio
             + self.renewable_num_ratio
             + self.consumer_num_ratio
-            == 0.0
+            == 1.0
         )
 
         assert self.initial_rebalance in ["directed", "undirected"]

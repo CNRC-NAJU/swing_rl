@@ -5,10 +5,15 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from config import GeneratorConfig, GridConfig, RenewableConfig
-from graph.utils import get_weighted_adjacency_matrix
+from graph.utils import (
+    directed2undirected,
+    get_edge_list,
+    get_weighted_adjacency_matrix,
+    repeat_weight,
+)
 
 from .distribution import distribute_capacity
-from .node import Consumer, Generator, Node, Renewable
+from .node import NodeType, Consumer, Generator, Node, Renewable
 
 arr32 = npt.NDArray[np.float32]
 Rng = np.random.Generator | int | None
@@ -39,11 +44,15 @@ class Grid:
         self.__graph = graph  # underlying graph: This should not change over time
         self.num_nodes = graph.number_of_nodes()
         self.num_edges = graph.number_of_edges()
+        self.edge_list: npt.NDArray[np.int64] = directed2undirected(
+            get_edge_list(graph)
+        ).numpy()
 
         # Configure weighted adjacency matrix
         if coupling is None:
             coupling = self.create_coupling(self.num_edges)
         self.set_coupling(coupling)
+        self.coupling: arr32 = repeat_weight(coupling).numpy()
 
         # --------------- Node setup ------------
         # Node types mask
@@ -71,6 +80,7 @@ class Grid:
     def set_coupling(self, coupling: npt.NDArray[np.float32]) -> None:
         """Change coupling of each edges
         Return weighted adjacency matrix"""
+        self.coupling = coupling
         self.weighted_adjacency_matrix = get_weighted_adjacency_matrix(
             self.__graph, coupling
         )
@@ -103,11 +113,11 @@ class Grid:
 
     # ------------------------------ Node configuration -----------------------------
     @property
-    def node_types(self) -> list[str]:
+    def node_types(self) -> list[NodeType]:
         node_types = np.empty(self.num_nodes, dtype=object)
-        node_types[self.is_consumer] = "consumer"
-        node_types[self.is_generator] = "generator"
-        node_types[self.is_renewable] = "renewable"
+        node_types[self.is_consumer] = NodeType.CONSUMER
+        node_types[self.is_generator] = NodeType.GENERATOR
+        node_types[self.is_renewable] = NodeType.RENEWABLE
 
         return node_types.tolist()
 
@@ -117,15 +127,21 @@ class Grid:
         ), f"Nodes of length {len(nodes)} not match with N={self.num_nodes}"
 
         self.nodes = nodes
-        self.is_consumer = np.array([str(node) == "consumer" for node in self.nodes])
-        self.is_generator = np.array([str(node) == "generator" for node in self.nodes])
-        self.is_renewable = np.array([str(node) == "renewable" for node in self.nodes])
+        self.is_consumer = np.array(
+            node.type == NodeType.CONSUMER for node in self.nodes
+        )
+        self.is_generator = np.array(
+            node.type == NodeType.GENERATOR for node in self.nodes
+        )
+        self.is_renewable = np.array(
+            node.type == NodeType.RENEWABLE for node in self.nodes
+        )
 
         self.activate()
 
     @staticmethod
     def create_nodes(
-        num_nodes: int, node_types: list[str] | None = None, rng: Rng = None
+        num_nodes: int, node_types: list[NodeType] | None = None, rng: Rng = None
     ) -> list[Node]:
         """Create list of nodes, following proper configurations
         If node_types is given, returning nodes will have the types"""
@@ -139,9 +155,9 @@ class Grid:
             num_renewables = int(num_nodes * GridConfig.renewable_num_ratio)
             num_consumers = num_nodes - num_generators - num_renewables
         else:
-            num_generators = sum(node_type == "generator" for node_type in node_types)
-            num_renewables = sum(node_type == "renewable" for node_type in node_types)
-            num_consumers = sum(node_type == "consumer" for node_type in node_types)
+            num_generators = sum(node_type is NodeType.GENERATOR for node_type in node_types)
+            num_renewables = sum(node_type is NodeType.RENEWABLE for node_type in node_types)
+            num_consumers = sum(node_type is NodeType.CONSUMER for node_type in node_types)
             assert num_generators + num_renewables + num_consumers == num_nodes
 
         # Create consumers
@@ -190,21 +206,33 @@ class Grid:
             # Assign nodes following their type
             nodes: list[Node] = []
             for node_type in node_types:
-                if node_type == "generator":
+                if node_type is NodeType.GENERATOR:
                     nodes.append(generators.pop())
-                elif node_type == "renewable":
+                elif node_type is NodeType.RENEWABLE:
                     nodes.append(renewables.pop())
                 else:
                     nodes.append(consumers.pop())
         return nodes
 
     @property
-    def params(self) -> npt.NDArray[np.float32]:
-        powers = np.array([node.power for node in self.nodes], dtype=np.float32)
-        gammas = np.array([node.gamma for node in self.nodes], dtype=np.float32)
-        masses = np.array([node.mass for node in self.nodes], dtype=np.float32)
+    def powers(self) -> npt.NDArray[np.float32]:
+        return np.array([node.power for node in self.nodes], dtype=np.float32)
 
-        return np.stack((powers, gammas, masses))
+    @property
+    def masses(self) -> npt.NDArray[np.float32]:
+        return np.array([node.mass for node in self.nodes], dtype=np.float32)
+
+    @property
+    def gammas(self) -> npt.NDArray[np.float32]:
+        return np.array([node.gamma for node in self.nodes], dtype=np.float32)
+
+    @property
+    def active_ratios(self) -> npt.NDArray[np.float32]:
+        return np.array([node.ratio for node in self.nodes], dtype=np.float32)
+
+    @property
+    def params(self) -> npt.NDArray[np.float32]:
+        return np.stack((self.powers, self.gammas, self.masses))
 
     # --------------------------- Power on entire grid -------------------------------
     @property
@@ -317,7 +345,3 @@ class Grid:
                 node.decrease()
             else:
                 node.increase()
-
-    # def perturbate(self, node_indices: npt.NDArray[np.int64]) -> list[int]:
-    #     """Perturbate selected nodes"""
-    #     return [self.nodes[node_idx].perturbate(self.rng) for node_idx in node_indices]
