@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import Any
+
+from .singleton import Singleton
 
 
 @dataclass
-class GeneratorConfig:
+class GeneratorConfig(metaclass=Singleton):
     # Unit
     unit_power: int = 1
     unit_mass: float = 1.0
@@ -14,3 +19,11 @@ class GeneratorConfig:
 
     def __post__init__(self) -> None:
         assert self.capacity_distribution_name in ["uniform", "normal"]
+
+    @classmethod
+    def from_dict(cls, config: dict[str, Any]) -> GeneratorConfig:
+        generator = cls()
+        for key, value in config.items():
+            setattr(generator, key, value)
+
+        return generator

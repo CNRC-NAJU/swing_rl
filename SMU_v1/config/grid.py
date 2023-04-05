@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import Any
 
 from .distribution import DistributionConfig
+from .singleton import Singleton
 
 
 @dataclass
-class GridConfig:
+class GridConfig(metaclass=Singleton):
     # Distribution of couplings of each nodes
     coupling_distribution: DistributionConfig = DistributionConfig(
         name="uniform",
@@ -26,7 +30,6 @@ class GridConfig:
     initial_rebalance: str = "directed"
     initial_max_rebalance: int = 1000
 
-
     def __post_init__(self) -> None:
         assert (
             self.generator_num_ratio
@@ -37,3 +40,12 @@ class GridConfig:
 
         assert self.initial_rebalance in ["directed", "undirected"]
 
+    @classmethod
+    def from_dict(cls, config: dict[str, Any]) -> GridConfig:
+        distribution = DistributionConfig(**config.pop("coupling_distribution"))
+
+        grid = cls(coupling_distribution=distribution)
+        for key, value in config.items():
+            setattr(grid, key, value)
+
+        return grid

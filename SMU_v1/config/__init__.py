@@ -8,6 +8,3 @@ from .observation import ObservationConfig
 from .renewable import RenewableConfig
 from .rl import RLConfig
 from .swing import SwingConfig
-
-# verify configurations
-Config()

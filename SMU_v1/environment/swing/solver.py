@@ -1,48 +1,49 @@
 import functools
-from typing import Callable, Protocol
+from typing import Protocol
 
-import numpy as np
 import numpy.typing as npt
 from config import SwingConfig
 from scipy.sparse import coo_matrix
 
 from . import default, original, sparse
 
+DTYPE = SwingConfig().dtype
 
 class Solver(Protocol):
     def __call__(
         self,
-        phase: npt.NDArray[SwingConfig.dtype],
-        dphase: npt.NDArray[SwingConfig.dtype],
-    ) -> tuple[npt.NDArray[SwingConfig.dtype], npt.NDArray[SwingConfig.dtype]]:
+        phase: npt.NDArray[DTYPE],
+        dphase: npt.NDArray[DTYPE],
+    ) -> tuple[npt.NDArray[DTYPE], npt.NDArray[DTYPE]]:
         ...
 
 
 def swing_solver(
-    weighted_adjacency_matrix: npt.NDArray[SwingConfig.dtype] | coo_matrix,
-    params: npt.NDArray[SwingConfig.dtype],
+    weighted_adjacency_matrix: npt.NDArray[DTYPE] | coo_matrix,
+    params: npt.NDArray[DTYPE],
 ) -> Solver:
-    if "sparse" in SwingConfig.name:
+    config = SwingConfig()
+    if "sparse" in config.name:
         solver_module = sparse
         weighted_adjacency_matrix = coo_matrix(weighted_adjacency_matrix)
-    elif "original" in SwingConfig.name:
+    elif "original" in config.name:
         solver_module = original
     else:
         solver_module = default
 
     # Which order of Runge-Kutta to use
-    if "rk1" in SwingConfig.name:
+    if "rk1" in config.name:
         step_solver = solver_module.rk1
-    elif "rk2" in SwingConfig.name:
+    elif "rk2" in config.name:
         step_solver = solver_module.rk2
-    elif "rk4" in SwingConfig.name:
+    elif "rk4" in config.name:
         step_solver = solver_module.rk4
     else:
-        raise ValueError(f"No such solver name: {SwingConfig.name}")
+        raise ValueError(f"No such solver name: {config.name}")
 
     return functools.partial(
         step_solver,
         weighted_adjacency_matrix=weighted_adjacency_matrix,
         params=params,
-        dt=SwingConfig.dt,
+        dt=config.dt,
     )

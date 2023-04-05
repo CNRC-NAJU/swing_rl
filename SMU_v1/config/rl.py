@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import Any
+
+from .singleton import Singleton
 
 
 @dataclass
-class RLConfig:
+class RLConfig(metaclass=Singleton):
     # Number of perturbated nodes at each steps
     num_pertubation: int = 1
 
@@ -31,7 +36,6 @@ class RLConfig:
     # Episode
     num_steps_per_episode: int = 1000
 
-
     def __post_init__(self) -> None:
         assert self.rebalance in ["directed", "undirected"]
 
@@ -52,3 +56,11 @@ class RLConfig:
             ), f"When reset node type, you also need to reset entire nodes"
 
         assert self.reward in ["area", "slope", "weighted_area"]
+
+    @classmethod
+    def from_dict(cls, config: dict[str, Any]) -> RLConfig:
+        rl = cls()
+        for key, value in config.items():
+            setattr(rl, key, value)
+
+        return rl

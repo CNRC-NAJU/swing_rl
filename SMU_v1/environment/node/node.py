@@ -8,7 +8,7 @@ from .type import NodeType
 class Node(ABC):
     def __init__(self, max_units: int) -> None:
         self.max_units = max_units
-        self.active_units: int = 0
+        self.active_units: int = 1  # [1, max_units]
 
         self.unit_power: int = 0
         self.unit_mass: float = 0.0
@@ -67,7 +67,7 @@ class Node(ABC):
 
     @property
     def full_inactive(self) -> bool:
-        return self.active_units == 0
+        return self.active_units == 1
 
     @property
     def ratio(self) -> float:

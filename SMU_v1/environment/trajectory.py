@@ -15,9 +15,9 @@ def normalize_phase(phase: npt.NDArray[T]) -> npt.NDArray[T]:
 def is_stable(dphase: npt.NDArray[T]) -> bool:
     """Check if all dphase are smaller than eps
     For float32 precision, 1e-4 is adequte"""
-    return np.all(np.abs(dphase) < RLConfig.stable_threshold).item()
+    return np.all(np.abs(dphase) < RLConfig().stable_threshold).item()
 
 
 def is_failed(dphase: npt.NDArray[T]) -> int:
     """Return number of failed nodes"""
-    return (dphase > RLConfig.fail_threshold).sum()
+    return (dphase > RLConfig().fail_threshold).sum()

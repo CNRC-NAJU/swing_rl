@@ -8,18 +8,23 @@ from config import GeneratorConfig, GridConfig, RenewableConfig, SwingConfig
 
 from .distribution import distribute_capacity
 from .graph.create import create_graph
-from .graph.utils import (directed2undirected, get_edge_list,
-                          get_weighted_adjacency_matrix, repeat_weight)
+from .graph.utils import (
+    directed2undirected,
+    get_edge_list,
+    get_weighted_adjacency_matrix,
+    repeat_weight,
+)
 from .node import Consumer, Generator, Node, NodeType, Renewable
 
 Rng = np.random.Generator | int | None
+DTYPE = SwingConfig().dtype
 
 
 class Grid:
     def __init__(
         self,
         graph: nx.Graph | None = None,
-        couplings: npt.NDArray[SwingConfig.dtype] | None = None,
+        couplings: npt.NDArray[DTYPE] | None = None,
         node_types: list[NodeType] | None = None,
         nodes: list[Node] | None = None,
         rng: Rng = None,
@@ -47,8 +52,8 @@ class Grid:
         self.set_graph(graph)
 
         # Initialize coupling constants
-        self.weighted_adjacency_matrix: npt.NDArray[SwingConfig.dtype]
-        self.couplings: npt.NDArray[SwingConfig.dtype]
+        self.weighted_adjacency_matrix: npt.NDArray[DTYPE]
+        self.couplings: npt.NDArray[DTYPE]
         if couplings is None:
             couplings = self.create_couplings(self.num_edges, self.rng)
         self.set_couplings(couplings)
@@ -110,7 +115,7 @@ class Grid:
         return self.graph.number_of_edges()
 
     # ---------------------------------- Coupling -----------------------------------
-    def set_couplings(self, couplings: npt.NDArray[SwingConfig.dtype]) -> None:
+    def set_couplings(self, couplings: npt.NDArray[DTYPE]) -> None:
         assert len(couplings) == self.num_edges
 
         self.weighted_adjacency_matrix = get_weighted_adjacency_matrix(
@@ -124,16 +129,15 @@ class Grid:
         self.set_couplings(couplings)
 
     @staticmethod
-    def create_couplings(
-        num_edges: int, rng: Rng = None
-    ) -> npt.NDArray[SwingConfig.dtype]:
+    def create_couplings(num_edges: int, rng: Rng = None) -> npt.NDArray[DTYPE]:
         """Create couplings of each edges"""
+        grid_config = GridConfig()
         # Random engine
         if not isinstance(rng, np.random.Generator):
             rng = np.random.default_rng(rng)
 
         # Assign coupling constant to each edges
-        coupling_distribution = GridConfig.coupling_distribution
+        coupling_distribution = grid_config.coupling_distribution
         if coupling_distribution.name == "uniform":
             coupling = rng.uniform(
                 low=cast(float, coupling_distribution.min),
@@ -150,7 +154,7 @@ class Grid:
             coupling = np.clip(coupling, a_min=coupling_distribution.min, a_max=None)
         else:
             raise ValueError(f"No such distribution {coupling_distribution.name}")
-        return coupling.astype(SwingConfig.dtype, copy=False)
+        return coupling.astype(DTYPE, copy=False)
 
     # ---------------------------------- Node type -----------------------------------
     def set_node_types(self, node_types: list[NodeType]) -> None:
@@ -182,13 +186,15 @@ class Grid:
     @staticmethod
     def create_node_types(num_nodes: int, rng: Rng = None) -> list[NodeType]:
         """Create list of node types, following proper configurations"""
+        grid_config = GridConfig()
+
         # Random engine
         if not isinstance(rng, np.random.Generator):
             rng = np.random.default_rng(rng)
 
         # Number of each node types, following configuration
-        num_generators = int(num_nodes * GridConfig.generator_num_ratio)
-        num_renewables = int(num_nodes * GridConfig.renewable_num_ratio)
+        num_generators = int(num_nodes * grid_config.generator_num_ratio)
+        num_renewables = int(num_nodes * grid_config.renewable_num_ratio)
         num_consumers = num_nodes - num_generators - num_renewables
 
         # list of node types
@@ -219,6 +225,10 @@ class Grid:
     @staticmethod
     def create_nodes(node_types: list[NodeType], rng: Rng = None) -> list[Node]:
         """Create list of nodes, following proper configurations and node types"""
+        grid_config = GridConfig()
+        renewable_config = RenewableConfig()
+        generator_config = GeneratorConfig()
+
         # Random engine
         if not isinstance(rng, np.random.Generator):
             rng = np.random.default_rng(rng)
@@ -238,10 +248,10 @@ class Grid:
         # Calculate total capacity of consumers/generators/renewables
         consumer_tot_capacity = abs(sum(consumer.capacity for consumer in consumers))
         generator_tot_capacity = math.ceil(
-            consumer_tot_capacity * GridConfig.generator_spare
+            consumer_tot_capacity * grid_config.generator_spare
         )
         renewable_tot_capacity = math.ceil(
-            generator_tot_capacity / GridConfig.source_ratio
+            generator_tot_capacity / grid_config.source_ratio
         )
 
         # Create generators, with distributed capacities
@@ -249,8 +259,8 @@ class Grid:
         capacities = distribute_capacity(
             generator_tot_capacity,
             num_generators,
-            GeneratorConfig.capacity_distribution_name,
-            GeneratorConfig.capacity_distribution_param,
+            generator_config.capacity_distribution_name,
+            generator_config.capacity_distribution_param,
             rng,
         )
         generators: list[Node] = [
@@ -261,8 +271,8 @@ class Grid:
         capacities = distribute_capacity(
             renewable_tot_capacity,
             num_renewables,
-            RenewableConfig.capacity_distribution_name,
-            RenewableConfig.capacity_distribution_param,
+            renewable_config.capacity_distribution_name,
+            renewable_config.capacity_distribution_param,
             rng,
         )
         renewables: list[Node] = [
@@ -286,19 +296,19 @@ class Grid:
 
     # --------------------------- grid parameters -------------------------------
     @property
-    def powers(self) -> npt.NDArray[SwingConfig.dtype]:
-        return np.array([node.power for node in self.nodes], dtype=SwingConfig.dtype)
+    def powers(self) -> npt.NDArray[DTYPE]:
+        return np.array([node.power for node in self.nodes], dtype=DTYPE)
 
     @property
-    def masses(self) -> npt.NDArray[SwingConfig.dtype]:
-        return np.array([node.mass for node in self.nodes], dtype=SwingConfig.dtype)
+    def masses(self) -> npt.NDArray[DTYPE]:
+        return np.array([node.mass for node in self.nodes], dtype=DTYPE)
 
     @property
-    def gammas(self) -> npt.NDArray[SwingConfig.dtype]:
-        return np.array([node.gamma for node in self.nodes], dtype=SwingConfig.dtype)
+    def gammas(self) -> npt.NDArray[DTYPE]:
+        return np.array([node.gamma for node in self.nodes], dtype=DTYPE)
 
     @property
-    def params(self) -> npt.NDArray[SwingConfig.dtype]:
+    def params(self) -> npt.NDArray[DTYPE]:
         return np.stack((self.powers, self.gammas, self.masses))
 
     @property
@@ -313,18 +323,19 @@ class Grid:
 
     def activate(self) -> None:
         """Activate each nodes for proper amount"""
-        if GridConfig.initial_rebalance == "directed":
+        grid_config = GridConfig()
+        if grid_config.initial_rebalance == "directed":
             rebalance = self.rebalance_directed
-        elif GridConfig.initial_rebalance == "undirected":
+        elif grid_config.initial_rebalance == "undirected":
             rebalance = self.rebalance_undirected
         else:
             raise ValueError(
-                f"No such rebalance strategy: {GridConfig.initial_rebalance}"
+                f"No such rebalance strategy: {grid_config.initial_rebalance}"
             )
 
         # Increase active units at each of nodes
         for node in self.nodes:
-            num_active_units = int(GridConfig.initial_active_ratio * node.max_units)
+            num_active_units = int(grid_config.initial_active_ratio * node.max_units)
             for _ in range(num_active_units):
                 node.increase()
 
@@ -334,9 +345,11 @@ class Grid:
             weights = self.rng.choice(
                 np.array([-1.0, 1.0], dtype=np.float32), size=self.num_nodes
             )
-            balanced = rebalance(weights, GridConfig.initial_max_rebalance)
+            balanced = rebalance(weights, grid_config.initial_max_rebalance)
 
-    def rebalance_undirected(self, weights: npt.NDArray[np.float32], max_trial: int) -> bool:
+    def rebalance_undirected(
+        self, weights: npt.NDArray[np.float32], max_trial: int
+    ) -> bool:
         """
         Rebalance total power in grid, by perturbation
         abs(weights): probability that each node will be selected
@@ -359,7 +372,9 @@ class Grid:
 
         return False
 
-    def rebalance_directed(self, weights: npt.NDArray[np.float32], max_trial: int) -> bool:
+    def rebalance_directed(
+        self, weights: npt.NDArray[np.float32], max_trial: int
+    ) -> bool:
         """
         Rebalance total power in grid, by increaing/decresing to reduce imbalance
         abs(weights): probability that each node will be selected

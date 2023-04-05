@@ -9,11 +9,11 @@ from .type import NodeType
 class Generator(Node):
     def __init__(self, max_units: int = 0) -> None:
         super().__init__(max_units)
-        self.active_units = 0  # [-max_units, max_units]
 
-        self.unit_power = GeneratorConfig.unit_power
-        self.unit_mass = GeneratorConfig.unit_mass
-        self.unit_gamma = GeneratorConfig.unit_gamma
+        config = GeneratorConfig()
+        self.unit_power = config.unit_power
+        self.unit_mass = config.unit_mass
+        self.unit_gamma = config.unit_gamma
 
     @classmethod
     def from_capacity(cls, capacity: int) -> Generator:
@@ -27,12 +27,7 @@ class Generator(Node):
         return NodeType.GENERATOR
 
     @property
-    def full_inactive(self) -> bool:
-        return self.active_units == -self.max_units
-
-    @property
     def power(self) -> int:
-        # Could be negative
         return self.active_units * self.unit_power
 
     @property

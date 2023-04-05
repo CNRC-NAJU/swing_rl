@@ -14,11 +14,11 @@ Rng = np.random.Generator | int | None
 class Renewable(Node):
     def __init__(self, max_units: int = 0, mass: float = 0.0) -> None:
         super().__init__(max_units)
-        self.active_units = 0  # [0, max_units]
 
-        self.unit_power = RenewableConfig.unit_power
+        config = RenewableConfig()
+        self.unit_power = config.unit_power
         self.unit_mass = mass
-        self.unit_gamma = RenewableConfig.unit_gamma_mass_ratio * mass
+        self.unit_gamma = config.unit_gamma_mass_ratio * mass
 
     @classmethod
     def randomly_from_capacity(cls, capacity: int, rng: Rng) -> Renewable:

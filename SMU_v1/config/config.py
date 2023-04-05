@@ -13,11 +13,12 @@ from .grid import GridConfig
 from .observation import ObservationConfig
 from .renewable import RenewableConfig
 from .rl import RLConfig
+from .singleton import Singleton
 from .swing import SwingConfig
 
 
 @dataclass
-class Config:
+class Config(metaclass=Singleton):
     consumer: ConsumerConfig = ConsumerConfig()
     generator: GeneratorConfig = GeneratorConfig()
     renewable: RenewableConfig = RenewableConfig()
@@ -42,25 +43,16 @@ class Config:
         with open(file_path, "r") as f:
             config: dict[str, Any] = yaml.safe_load(f)
 
-        consumer = ConsumerConfig(**config.pop("consumer"))
-        generator = GeneratorConfig(**config.pop("generator"))
-        renewable = RenewableConfig(**config.pop("renewable"))
+        ConsumerConfig.from_dict(config.pop("consumer"))
+        GeneratorConfig.from_dict(config.pop("generator"))
+        RenewableConfig.from_dict(config.pop("renewable"))
 
-        graph = GraphConfig(**config.pop("graph"))
-        grid = GridConfig(**config.pop("grid"))
-        observation = ObservationConfig(**config.pop("observation"))
-        rl = RLConfig(**config.pop("rl"))
-        swing = SwingConfig(**config.pop("swing"))
+        GraphConfig.from_dict(config.pop("graph"))
+        GridConfig.from_dict(config.pop("grid"))
 
-        return cls(
-            **config,
-            consumer=consumer,
-            generator=generator,
-            renewable=renewable,
-            graph=graph,
-            grid=grid,
-            observation=observation,
-            rl=rl,
-            swing=swing,
-        )
+        ObservationConfig.from_dict(config.pop("observation"))
+        RLConfig.from_dict(config.pop("rl"))
+        SwingConfig.from_dict(config.pop("swing"))
+
+        return cls()
 

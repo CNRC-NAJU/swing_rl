@@ -12,11 +12,11 @@ from .type import NodeType
 class Consumer(Node):
     def __init__(self, max_units: int = 0) -> None:
         super().__init__(max_units)
-        self.active_units = 0  # [0, max_units]
 
-        self.unit_power = ConsumerConfig.unit_power
-        self.unit_mass = ConsumerConfig.unit_mass
-        self.unit_gamma = ConsumerConfig.unit_gamma
+        config = ConsumerConfig()
+        self.unit_power = config.unit_power
+        self.unit_mass = config.unit_mass
+        self.unit_gamma = config.unit_gamma
 
     @classmethod
     def randomly(cls, rng: np.random.Generator) -> Consumer:
@@ -24,7 +24,7 @@ class Consumer(Node):
         Randomly create consumer, with max_units following certain distribution,
         specified in configuration
         """
-        max_units_distribution = ConsumerConfig.max_units_distribution
+        max_units_distribution = ConsumerConfig().max_units_distribution
         if max_units_distribution.name == "uniform":
             max_units = rng.integers(
                 low=int(cast(float, max_units_distribution.min)),

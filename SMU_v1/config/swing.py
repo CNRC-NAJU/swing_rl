@@ -1,15 +1,16 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Type, TypeVar
+from typing import Any, Type
 
 import numpy as np
 import numpy.typing as npt
 
-
-T = TypeVar("T", np.float16, np.float32, np.float64, np.float128)
+from .singleton import Singleton
 
 
 @dataclass
-class SwingConfig:
+class SwingConfig(metaclass=Singleton):
     # which solver to solve swing equation
     # e.g., RK1: "rk1",  "rk1_original", "rk1_sparse"
     #       RK2: "rk2",  "rk2_original", "rk2_sparse"
@@ -36,21 +37,27 @@ class SwingConfig:
         ]
         assert self._dtype in [16, 32, 64, 128]
 
-    @classmethod
     @property
-    def dtype(cls) -> Type:
-        if cls._dtype == 16:
+    def dtype(self) -> Type[np.generic]:
+        if self._dtype == 16:
             return np.float16
-        elif cls._dtype == 32:
+        elif self._dtype == 32:
             return np.float32
-        elif cls._dtype == 64:
+        elif self._dtype == 64:
             return np.float64
-        elif cls._dtype == 128:
+        elif self._dtype == 128:
             return np.float128
         else:
-            raise ValueError(f"No such _dtype: np.float{cls._dtype}")
+            raise ValueError(f"No such _dtype: np.float{self._dtype}")
+
+    @property
+    def dt(self) -> npt.NDArray:
+        return np.array(self._dt, dtype=self.dtype)
 
     @classmethod
-    @property
-    def dt(cls) -> npt.NDArray:
-        return np.array(cls._dt, dtype=cls.dtype)
+    def from_dict(cls, config: dict[str, Any]) -> SwingConfig:
+        swing = cls()
+        for key, value in config.items():
+            setattr(swing, key, value)
+
+        return swing

@@ -1,5 +1,5 @@
 from collections import Counter
-from typing import TypeVar, cast
+from typing import TypeVar
 
 import networkx as nx
 import numpy as np
@@ -16,9 +16,7 @@ def directed2undirected(edge_list: npt.NDArray[np.int64]) -> npt.NDArray[np.int6
     return np.concatenate([edge_list, edge_list[:, (1, 0)]]).T
 
 
-def repeat_weight(
-    weights: npt.NDArray[T],
-) -> npt.NDArray[T]:
+def repeat_weight(weights: npt.NDArray) -> npt.NDArray:
     """repeat the weight of shape (E, ) or (E, attr) into (2E, ) or (2E, attr)"""
     return np.concatenate((weights, weights))  # (2E, ) or (2E, edge_attr)
 
@@ -48,9 +46,9 @@ def get_edge_list(graph: nx.Graph) -> npt.NDArray[np.int64]:
 
 def edge_list_2_adjacency_matrix(
     edge_list: npt.NDArray[np.int64],
-    weights: npt.NDArray[T],
+    weights: npt.NDArray,
     num_nodes: int | None = None,
-) -> npt.NDArray[T]:
+) -> npt.NDArray:
     """
     edge list: (E, 2). If (0,1) is included in the edge list, (1,0) is not included
     weights: (E, ) or (E, 1)
@@ -69,8 +67,8 @@ def edge_list_2_adjacency_matrix(
 
 
 def get_weighted_adjacency_matrix(
-    graph: nx.Graph, weights: npt.NDArray[T] | float | None = None
-) -> npt.NDArray[T]:
+    graph: nx.Graph, weights: npt.NDArray | float | None = None
+) -> npt.NDArray:
     """
     Return weighted adjacency matrix of shape [N, N].
     If (i,j) is connected weight w, A[i,j] = A[j,i]=w
@@ -81,16 +79,16 @@ def get_weighted_adjacency_matrix(
     num_edges = graph.number_of_edges()
 
     if weights is None:
-        weights = cast(npt.NDArray[T], np.ones(num_edges, dtype=np.float32))
+        weights = np.ones(num_edges, dtype=np.float32)
     elif isinstance(weights, float):
-        weights = cast(npt.NDArray[T], weights * np.ones(num_edges, dtype=np.float32))
+        weights = weights * np.ones(num_edges, dtype=np.float32)
 
     return edge_list_2_adjacency_matrix(get_edge_list(graph), weights, num_nodes)
 
 
 def get_weighted_laplacian_matrix(
-    graph: nx.Graph, weights: npt.NDArray[T] | float | None = None
-) -> npt.NDArray[T]:
+    graph: nx.Graph, weights: npt.NDArray | float | None = None
+) -> npt.NDArray:
     """
     Return weighted laplacian matrix
 
