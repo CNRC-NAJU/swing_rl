@@ -16,7 +16,7 @@ import numpy as np
 import numpy.typing as npt
 from numba import njit
 
-T = TypeVar("T", np.float32, np.float64)
+T = TypeVar("T", np.float16, np.float32, np.float64, np.float128)
 
 
 @njit(fastmath=True)

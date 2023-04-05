@@ -11,12 +11,12 @@ class RenewableConfig:
 
     # Distribution of unit mass
     mass_distribution: DistributionConfig = DistributionConfig(
-        name="uniform", min=1.0, max=1.0
+        name="uniform", min=0.1, max=0.1
     )
 
     # Distribution of capacity
     capacity_distribution_name: str = "uniform"
-    capacity_distribution_param: float = 0.0  # Delta for uniform/sigma for normal
+    capacity_distribution_param: float = 4.0  # Delta for uniform/sigma for normal
 
     def __post__init__(self) -> None:
         assert self.capacity_distribution_name in ["uniform", "normal"]

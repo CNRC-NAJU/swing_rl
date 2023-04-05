@@ -7,7 +7,7 @@ class RLConfig:
     num_pertubation: int = 1
 
     # simulation time
-    steady_time: float = 10
+    steady_time: float = 20
     equilibrium_time: float = 1
 
     # Stability of node
@@ -16,19 +16,20 @@ class RLConfig:
 
     # Rebalancing policy
     rebalance: str = "directed"
+    max_rebalance: int = 1000
 
     # Reset range
     reset_graph: bool = False
     reset_coupling: bool = False
     reset_node_type: bool = False
-    reset_node: bool = False
+    reset_node: bool = True
 
     # Reward
     reward: str = "weighted_area"
     failed_scale: float = 1.0
 
     # Episode
-    steps_per_episode: int = 1000
+    num_steps_per_episode: int = 1000
 
 
     def __post_init__(self) -> None:

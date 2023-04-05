@@ -17,8 +17,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.sparse import coo_matrix
 
-T = TypeVar("T", np.float32, np.float64)
-
+T = TypeVar("T", np.float16, np.float32, np.float64, np.float128)
 
 def get_acceleration(
     weighted_adjacency_matrix: coo_matrix,

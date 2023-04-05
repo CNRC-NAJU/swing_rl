@@ -1,5 +1,5 @@
 import functools
-from typing import Callable
+from typing import Callable, Protocol
 
 import numpy as np
 import numpy.typing as npt
@@ -9,12 +9,19 @@ from scipy.sparse import coo_matrix
 from . import default, original, sparse
 
 
+class Solver(Protocol):
+    def __call__(
+        self,
+        phase: npt.NDArray[SwingConfig.dtype],
+        dphase: npt.NDArray[SwingConfig.dtype],
+    ) -> tuple[npt.NDArray[SwingConfig.dtype], npt.NDArray[SwingConfig.dtype]]:
+        ...
+
+
 def swing_solver(
-    weighted_adjacency_matrix: npt.NDArray[np.float32] | coo_matrix,
-    params: npt.NDArray[np.float32],
-) -> Callable[
-    [npt.NDArray[np.float32], npt.NDArray[np.float32]], tuple[npt.NDArray, npt.NDArray]
-]:
+    weighted_adjacency_matrix: npt.NDArray[SwingConfig.dtype] | coo_matrix,
+    params: npt.NDArray[SwingConfig.dtype],
+) -> Solver:
     if "sparse" in SwingConfig.name:
         solver_module = sparse
         weighted_adjacency_matrix = coo_matrix(weighted_adjacency_matrix)
@@ -35,7 +42,7 @@ def swing_solver(
 
     return functools.partial(
         step_solver,
-        weightd_adjacency_matrix=weighted_adjacency_matrix,
+        weighted_adjacency_matrix=weighted_adjacency_matrix,
         params=params,
-        dt=np.array(SwingConfig.dt, dtype=np.float32),
+        dt=SwingConfig.dt,
     )

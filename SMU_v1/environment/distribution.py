@@ -15,7 +15,7 @@ def uniform_integers_with_sum(
         rng = np.random.default_rng(rng)
 
     # Distribution setting
-    avg = round(tot, num)
+    avg = round(tot / num)
     min_range, max_range = max(1, avg - delta), avg + delta
     if tot < num * min_range or tot > num * max_range:
         raise ValueError("No solution exists with given parameters.")

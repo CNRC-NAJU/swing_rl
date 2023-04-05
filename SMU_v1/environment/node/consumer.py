@@ -52,10 +52,14 @@ class Consumer(Node):
 
     @property
     def mass(self) -> float:
+        if self.active_units == 0:
+            return self.unit_mass
         return self.active_units * self.unit_mass
 
     @property
     def gamma(self) -> float:
+        if self.active_units == 0:
+            return self.unit_gamma
         return self.active_units * self.unit_gamma
 
     @property

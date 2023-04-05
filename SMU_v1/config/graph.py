@@ -9,7 +9,7 @@ class GraphConfig:
 
     # Distribution of network size
     num_nodes_distribution: DistributionConfig = DistributionConfig(
-        name="uniform", min=20.0, max=20.0
+        name="uniform", min=10.0, max=10.0
     )
 
     mean_degree: float = 4.0

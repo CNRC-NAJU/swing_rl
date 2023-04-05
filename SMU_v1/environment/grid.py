@@ -4,161 +4,233 @@ from typing import cast
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
-from config import GeneratorConfig, GridConfig, RenewableConfig
-from graph.utils import (
-    directed2undirected,
-    get_edge_list,
-    get_weighted_adjacency_matrix,
-    repeat_weight,
-)
+from config import GeneratorConfig, GridConfig, RenewableConfig, SwingConfig
 
 from .distribution import distribute_capacity
-from .node import NodeType, Consumer, Generator, Node, Renewable
+from .graph.create import create_graph
+from .graph.utils import (directed2undirected, get_edge_list,
+                          get_weighted_adjacency_matrix, repeat_weight)
+from .node import Consumer, Generator, Node, NodeType, Renewable
 
-arr32 = npt.NDArray[np.float32]
 Rng = np.random.Generator | int | None
 
 
 class Grid:
     def __init__(
         self,
-        graph: nx.Graph,
-        coupling: npt.NDArray[np.float32] | None = None,
+        graph: nx.Graph | None = None,
+        couplings: npt.NDArray[SwingConfig.dtype] | None = None,
+        node_types: list[NodeType] | None = None,
         nodes: list[Node] | None = None,
         rng: Rng = None,
     ) -> None:
         """
         graph: underlying graph structure. This will be constant.
-        coupling: coupling strength for each edges on graph.
+        couplings: coupling strength for each edges on graph.
                   If not given, randomly create couplings with proper distribtution
+        node_types: list of node types
         nodes: list of nodes Generator/Renewable/Consumer
                If not given, randomly create nodes with proper distribution
+               If node_types is given, nodes should follow it's type
         """
-        # --------------- Random setup ------------
+        # Random engine
         if isinstance(rng, np.random.Generator):
             self.rng = rng
         else:
             self.rng = np.random.default_rng(rng)
 
-        # --------------- Graph setup ------------
-        self.__graph = graph  # underlying graph: This should not change over time
-        self.num_nodes = graph.number_of_nodes()
-        self.num_edges = graph.number_of_edges()
-        self.edge_list: npt.NDArray[np.int64] = directed2undirected(
-            get_edge_list(graph)
-        ).numpy()
+        # Initialize graph
+        self.graph: nx.Graph
+        self.edge_list: npt.NDArray[np.int64]
+        if graph is None:
+            graph = self.create_graph(self.rng)
+        self.set_graph(graph)
 
-        # Configure weighted adjacency matrix
-        if coupling is None:
-            coupling = self.create_coupling(self.num_edges)
-        self.set_coupling(coupling)
-        self.coupling: arr32 = repeat_weight(coupling).numpy()
+        # Initialize coupling constants
+        self.weighted_adjacency_matrix: npt.NDArray[SwingConfig.dtype]
+        self.couplings: npt.NDArray[SwingConfig.dtype]
+        if couplings is None:
+            couplings = self.create_couplings(self.num_edges, self.rng)
+        self.set_couplings(couplings)
 
-        # --------------- Node setup ------------
-        # Node types mask
+        # Initialize node types
+        self.node_types: list[NodeType]
         self.is_consumer: npt.NDArray[np.bool_]
         self.is_generator: npt.NDArray[np.bool_]
         self.is_renewable: npt.NDArray[np.bool_]
+        if node_types is None:
+            node_types = self.create_node_types(self.num_nodes, self.rng)
+        self.set_node_types(node_types)
 
-        # Assign nodes
+        # Initialize nodes
+        self.nodes: list
         if nodes is None:
-            nodes = self.create_nodes(self.num_nodes, rng=self.rng)
+            nodes = self.create_nodes(self.node_types, rng=self.rng)
         self.set_nodes(nodes)
 
-        # Power on the grid: activate each nodes
+        # Activate
         self.activate()
 
+    def info(self) -> None:
+        for i, node in enumerate(self.nodes):
+            print(f"Node {i} - {node}")
+
     # ---------------------------------- Graph -----------------------------------
-    @property
-    def graph(self) -> nx.Graph:
-        return self.__graph
+    def set_graph(self, graph: nx.Graph) -> None:
+        self.graph = graph
+        self.edge_list = directed2undirected(get_edge_list(graph))
 
-    @graph.setter
-    def graph(self, _: nx.Graph) -> None:
-        raise ValueError("You can't modify graph of the grid")
+    def reset_graph(self) -> None:
+        """Reset underlying graph of grid
+        Coupling constants and node/node types are reset accordingly"""
+        graph = self.create_graph(self.rng)
+        self.set_graph(graph)
 
-    def set_coupling(self, coupling: npt.NDArray[np.float32]) -> None:
-        """Change coupling of each edges
-        Return weighted adjacency matrix"""
-        self.coupling = coupling
-        self.weighted_adjacency_matrix = get_weighted_adjacency_matrix(
-            self.__graph, coupling
-        )
+        # Reset coupling, node types accordingly
+        self.reset_coupling()
+        self.reset_node_types()  # Nodes will also be reset
+
+        # Activate
+        self.activate()
 
     @staticmethod
-    def create_coupling(num_edges: int, rng: Rng = None) -> npt.NDArray[np.float32]:
-        """Create couplings of each node"""
+    def create_graph(rng: Rng = None) -> nx.Graph:
+        """Create graph"""
+        # Random engine
+        if not isinstance(rng, np.random.Generator):
+            rng = np.random.default_rng(rng)
+        return create_graph(rng)
+
+    @property
+    def num_nodes(self) -> int:
+        return self.graph.number_of_nodes()
+
+    @property
+    def num_edges(self) -> int:
+        return self.graph.number_of_edges()
+
+    # ---------------------------------- Coupling -----------------------------------
+    def set_couplings(self, couplings: npt.NDArray[SwingConfig.dtype]) -> None:
+        assert len(couplings) == self.num_edges
+
+        self.weighted_adjacency_matrix = get_weighted_adjacency_matrix(
+            self.graph, couplings
+        )
+        self.coupling = repeat_weight(couplings)
+
+    def reset_coupling(self) -> None:
+        """Reset coupling constants of existing grid"""
+        couplings = self.create_couplings(self.num_edges, self.rng)
+        self.set_couplings(couplings)
+
+    @staticmethod
+    def create_couplings(
+        num_edges: int, rng: Rng = None
+    ) -> npt.NDArray[SwingConfig.dtype]:
+        """Create couplings of each edges"""
         # Random engine
         if not isinstance(rng, np.random.Generator):
             rng = np.random.default_rng(rng)
 
+        # Assign coupling constant to each edges
         coupling_distribution = GridConfig.coupling_distribution
         if coupling_distribution.name == "uniform":
             coupling = rng.uniform(
                 low=cast(float, coupling_distribution.min),
                 high=cast(float, coupling_distribution.max),
                 size=num_edges,
-            ).astype(np.float32)
+            )
         elif coupling_distribution.name == "normal":
             coupling = rng.normal(
                 loc=cast(float, coupling_distribution.avg),
                 scale=cast(float, coupling_distribution.std),
                 size=num_edges,
-            ).astype(np.float32)
+            )
             assert coupling_distribution.min is not None
             coupling = np.clip(coupling, a_min=coupling_distribution.min, a_max=None)
         else:
             raise ValueError(f"No such distribution {coupling_distribution.name}")
-        return coupling
+        return coupling.astype(SwingConfig.dtype, copy=False)
 
-    # ------------------------------ Node configuration -----------------------------
-    @property
-    def node_types(self) -> list[NodeType]:
-        node_types = np.empty(self.num_nodes, dtype=object)
-        node_types[self.is_consumer] = NodeType.CONSUMER
-        node_types[self.is_generator] = NodeType.GENERATOR
-        node_types[self.is_renewable] = NodeType.RENEWABLE
+    # ---------------------------------- Node type -----------------------------------
+    def set_node_types(self, node_types: list[NodeType]) -> None:
+        assert len(node_types) == self.num_nodes
 
-        return node_types.tolist()
-
-    def set_nodes(self, nodes: list[Node]) -> None:
-        assert (
-            len(nodes) == self.num_nodes
-        ), f"Nodes of length {len(nodes)} not match with N={self.num_nodes}"
-
-        self.nodes = nodes
+        self.node_types = node_types
         self.is_consumer = np.array(
-            node.type == NodeType.CONSUMER for node in self.nodes
+            [node_type is NodeType.CONSUMER for node_type in node_types]
         )
         self.is_generator = np.array(
-            node.type == NodeType.GENERATOR for node in self.nodes
+            [node_type is NodeType.GENERATOR for node_type in node_types]
         )
         self.is_renewable = np.array(
-            node.type == NodeType.RENEWABLE for node in self.nodes
+            [node_type is NodeType.RENEWABLE for node_type in node_types]
         )
 
+    def reset_node_types(self) -> None:
+        """Reset node types of existing grid.
+        Nodes is reset accordingly"""
+        node_types = self.create_node_types(self.num_nodes, self.rng)
+        self.set_node_types(node_types)
+
+        # Reset nodes accordingly
+        self.reset_nodes()
+
+        # activate
         self.activate()
 
     @staticmethod
-    def create_nodes(
-        num_nodes: int, node_types: list[NodeType] | None = None, rng: Rng = None
-    ) -> list[Node]:
-        """Create list of nodes, following proper configurations
-        If node_types is given, returning nodes will have the types"""
+    def create_node_types(num_nodes: int, rng: Rng = None) -> list[NodeType]:
+        """Create list of node types, following proper configurations"""
         # Random engine
         if not isinstance(rng, np.random.Generator):
             rng = np.random.default_rng(rng)
 
         # Number of each node types, following configuration
-        if node_types is None:
-            num_generators = int(num_nodes * GridConfig.generator_num_ratio)
-            num_renewables = int(num_nodes * GridConfig.renewable_num_ratio)
-            num_consumers = num_nodes - num_generators - num_renewables
-        else:
-            num_generators = sum(node_type is NodeType.GENERATOR for node_type in node_types)
-            num_renewables = sum(node_type is NodeType.RENEWABLE for node_type in node_types)
-            num_consumers = sum(node_type is NodeType.CONSUMER for node_type in node_types)
-            assert num_generators + num_renewables + num_consumers == num_nodes
+        num_generators = int(num_nodes * GridConfig.generator_num_ratio)
+        num_renewables = int(num_nodes * GridConfig.renewable_num_ratio)
+        num_consumers = num_nodes - num_generators - num_renewables
+
+        # list of node types
+        node_types = (
+            [NodeType.GENERATOR] * num_generators
+            + [NodeType.RENEWABLE] * num_renewables
+            + [NodeType.CONSUMER] * num_consumers
+        )
+
+        # Shuffle the types
+        rng.shuffle(node_types)  # type:ignore
+
+        return node_types
+
+    # ------------------------------ Node configuration -----------------------------
+    def set_nodes(self, nodes: list[Node]) -> None:
+        assert self.match_type(self.node_types, nodes)
+        self.nodes = nodes
+
+    def reset_nodes(self) -> None:
+        """Reset node of existing grid"""
+        nodes = self.create_nodes(self.node_types, self.rng)
+        self.set_nodes(nodes)
+
+        # activate
+        self.activate()
+
+    @staticmethod
+    def create_nodes(node_types: list[NodeType], rng: Rng = None) -> list[Node]:
+        """Create list of nodes, following proper configurations and node types"""
+        # Random engine
+        if not isinstance(rng, np.random.Generator):
+            rng = np.random.default_rng(rng)
+
+        # Number of each node types, following configuration
+        num_generators = sum(
+            node_type is NodeType.GENERATOR for node_type in node_types
+        )
+        num_renewables = sum(
+            node_type is NodeType.RENEWABLE for node_type in node_types
+        )
+        num_consumers = sum(node_type is NodeType.CONSUMER for node_type in node_types)
 
         # Create consumers
         consumers: list[Node] = [Consumer.randomly(rng) for _ in range(num_consumers)]
@@ -197,42 +269,41 @@ class Grid:
             Renewable.randomly_from_capacity(capacity, rng) for capacity in capacities
         ]
 
-        # concatenate generators, renewables, consumers
-        if node_types is None:
-            # Randomly shuffle nodes
-            nodes = consumers + generators + renewables
-            rng.shuffle(nodes)  # type:ignore
-        else:
-            # Assign nodes following their type
-            nodes: list[Node] = []
-            for node_type in node_types:
-                if node_type is NodeType.GENERATOR:
-                    nodes.append(generators.pop())
-                elif node_type is NodeType.RENEWABLE:
-                    nodes.append(renewables.pop())
-                else:
-                    nodes.append(consumers.pop())
+        # concatenate generators, renewables, consumers in order of their types
+        nodes: list[Node] = []
+        for node_type in node_types:
+            if node_type is NodeType.GENERATOR:
+                nodes.append(generators.pop())
+            elif node_type is NodeType.RENEWABLE:
+                nodes.append(renewables.pop())
+            else:
+                nodes.append(consumers.pop())
         return nodes
 
+    @staticmethod
+    def match_type(node_types: list[NodeType], nodes: list[Node]) -> bool:
+        return node_types == [node.type for node in nodes]
+
+    # --------------------------- grid parameters -------------------------------
     @property
-    def powers(self) -> npt.NDArray[np.float32]:
-        return np.array([node.power for node in self.nodes], dtype=np.float32)
+    def powers(self) -> npt.NDArray[SwingConfig.dtype]:
+        return np.array([node.power for node in self.nodes], dtype=SwingConfig.dtype)
 
     @property
-    def masses(self) -> npt.NDArray[np.float32]:
-        return np.array([node.mass for node in self.nodes], dtype=np.float32)
+    def masses(self) -> npt.NDArray[SwingConfig.dtype]:
+        return np.array([node.mass for node in self.nodes], dtype=SwingConfig.dtype)
 
     @property
-    def gammas(self) -> npt.NDArray[np.float32]:
-        return np.array([node.gamma for node in self.nodes], dtype=np.float32)
+    def gammas(self) -> npt.NDArray[SwingConfig.dtype]:
+        return np.array([node.gamma for node in self.nodes], dtype=SwingConfig.dtype)
+
+    @property
+    def params(self) -> npt.NDArray[SwingConfig.dtype]:
+        return np.stack((self.powers, self.gammas, self.masses))
 
     @property
     def active_ratios(self) -> npt.NDArray[np.float32]:
         return np.array([node.ratio for node in self.nodes], dtype=np.float32)
-
-    @property
-    def params(self) -> npt.NDArray[np.float32]:
-        return np.stack((self.powers, self.gammas, self.masses))
 
     # --------------------------- Power on entire grid -------------------------------
     @property
@@ -242,46 +313,59 @@ class Grid:
 
     def activate(self) -> None:
         """Activate each nodes for proper amount"""
+        if GridConfig.initial_rebalance == "directed":
+            rebalance = self.rebalance_directed
+        elif GridConfig.initial_rebalance == "undirected":
+            rebalance = self.rebalance_undirected
+        else:
+            raise ValueError(
+                f"No such rebalance strategy: {GridConfig.initial_rebalance}"
+            )
+
         # Increase active units at each of nodes
         for node in self.nodes:
             num_active_units = int(GridConfig.initial_active_ratio * node.max_units)
             for _ in range(num_active_units):
                 node.increase()
 
-        # Resolve power imbalnce
-        weights = self.rng.choice(
-            np.array([-1.0, 1.0], dtype=np.float32), size=self.num_nodes
-        )
-        if GridConfig.initial_rebalance == "directed":
-            return self.rebalance_directed(weights)
-        elif GridConfig.initial_rebalance == "undirected":
-            return self.rebalance_undirected(weights)
-        else:
-            raise ValueError(
-                f"No such rebalance strategy: {GridConfig.initial_rebalance}"
+        # Resolve power imbalance
+        balanced = False
+        while not balanced:
+            weights = self.rng.choice(
+                np.array([-1.0, 1.0], dtype=np.float32), size=self.num_nodes
             )
+            balanced = rebalance(weights, GridConfig.initial_max_rebalance)
 
-    def rebalance_undirected(self, weights: arr32) -> None:
+    def rebalance_undirected(self, weights: npt.NDArray[np.float32], max_trial: int) -> bool:
         """
         Rebalance total power in grid, by perturbation
         abs(weights): probability that each node will be selected
         sign(weights): If positive, increase active units. Otherwise, decrease
+
+        Return true if successfully rebalanced
         """
         weights /= np.sum(np.abs(weights))  # Normalize weight
 
         # Rebalancing
-        while self.power_imbalance != 0:
+        for _ in range(max_trial):
+            if self.power_imbalance == 0:
+                return True
+
             random_idx = self.rng.choice(self.num_nodes, p=np.abs(weights))
             node, weight = self.nodes[random_idx], weights[random_idx]
 
             # Increase active units if weight is positive, decrease otherwise
             node.increase() if weight > 0 else node.decrease()
 
-    def rebalance_directed(self, weights: arr32) -> None:
+        return False
+
+    def rebalance_directed(self, weights: npt.NDArray[np.float32], max_trial: int) -> bool:
         """
         Rebalance total power in grid, by increaing/decresing to reduce imbalance
         abs(weights): probability that each node will be selected
         sign(weights): If positive, increase active units. Otherwise, decrease
+
+        Return true if successfully rebalanced
         """
         # Zero out weights that is not useful for the power imbalance direction
         # i.e., if imbalance is positive, remove production weight
@@ -303,12 +387,17 @@ class Grid:
             )
         weights /= np.sum(np.abs(weights))  # Normalize weight
 
-        while self.power_imbalance != 0:
+        for _ in range(max_trial):
+            if self.power_imbalance == 0:
+                return True
+
             random_idx = self.rng.choice(self.num_nodes, p=np.abs(weights))
             node, weight = self.nodes[random_idx], weights[random_idx]
 
             # Increase active units if weight is positive, decrease otherwise
             node.increase() if weight > 0 else node.decrease()
+
+        return False
 
     # ------------------------------ Perturbation ---------------------------------
     def mark_perturbation(self, num: int) -> npt.NDArray[np.int64]:

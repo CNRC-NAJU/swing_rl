@@ -1,0 +1,86 @@
+consumer:
+  max_units_distribution:
+    avg: null
+    max: 10.0
+    min: 10.0
+    name: uniform
+    std: null
+  unit_gamma: 1.0
+  unit_mass: 1.0
+  unit_power: -1
+generator:
+  capacity_distribution_name: uniform
+  capacity_distribution_param: 4.0
+  unit_gamma: 1.0
+  unit_mass: 1.0
+  unit_power: 1
+graph:
+  mean_degree: 4.0
+  num_nodes_distribution:
+    avg: null
+    max: 10.0
+    min: 10.0
+    name: uniform
+    std: null
+  shk_initial: 1
+  shk_p: 0.2
+  shk_q: 0.3
+  shk_r: 0.3333
+  shk_s: 0.1
+  topology: shk
+grid:
+  consumer_num_ratio: 0.4
+  coupling_distribution:
+    avg: null
+    max: 1.0
+    min: 1.0
+    name: uniform
+    std: null
+  generator_num_ratio: 0.4
+  generator_spare: 1.1
+  initial_active_ratio: 0.5
+  initial_max_rebalance: 1000
+  initial_rebalance: directed
+  renewable_num_ratio: 0.2
+  source_ratio: 4.0
+observation:
+  active_ratio: true
+  coupling: true
+  dphase: true
+  edge_list: true
+  gamma: true
+  mass: true
+  node_type: true
+  perturbation: true
+  phase: true
+  power: true
+renewable:
+  capacity_distribution_name: uniform
+  capacity_distribution_param: 1.0
+  mass_distribution:
+    avg: null
+    max: 0.1
+    min: 0.1
+    name: uniform
+    std: null
+  unit_gamma_mass_ratio: 1.0
+  unit_power: 1
+rl:
+  equilibrium_time: 1
+  fail_threshold: 0.01
+  failed_scale: 1.0
+  max_rebalance: 1000
+  num_pertubation: 1
+  num_steps_per_episode: 1000
+  rebalance: directed
+  reset_coupling: false
+  reset_graph: false
+  reset_node: true
+  reset_node_type: true
+  reward: weighted_area
+  stable_threshold: 0.0001
+  steady_time: 20
+swing:
+  _dt: 0.001
+  _dtype: 32
+  name: rk4

@@ -58,6 +58,9 @@ class Node(ABC):
                 return 1
             return -1
 
+    def __str__(self) -> str:
+        return f"Type: {self.type.name}, max: {self.max_units}, active: {self.active_units}"
+
     @property
     def full_active(self) -> bool:
         return self.active_units == self.max_units
@@ -72,7 +75,7 @@ class Node(ABC):
 
     @property
     @abstractmethod
-    def type(self) -> NodeTypes:
+    def type(self) -> NodeType:
         pass
 
     @property

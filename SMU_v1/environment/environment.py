@@ -1,5 +1,6 @@
 import copy
-from typing import Any
+from functools import partial
+from typing import Any, Callable
 
 import gymnasium as gym
 import gymnasium.spaces as spaces
@@ -7,68 +8,87 @@ import numpy as np
 import numpy.typing as npt
 from config import ObservationConfig, RLConfig, SwingConfig
 
-from .graph.utils import get_graph
 from .grid import Grid
 from .reward import get_reward_ftn, reward_failed
 from .swing.solver import swing_solver
 from .trajectory import is_failed, is_stable, normalize_phase
 
-arr32 = npt.NDArray[np.float32]
 Rng = np.random.Generator | int | None
 
 
 class Environment(gym.Env):
-    def __init__(self, rng: Rng = None) -> None:
-        # --------------- Random setup ------------
+    def __init__(self, grid: Grid, rng: Rng = None) -> None:
+        # Random engine
         if isinstance(rng, np.random.Generator):
             self.rng = rng
         else:
             self.rng = np.random.default_rng(rng)
         self.np_random = self.rng
 
-        # -------- Powergrid configuration ---------
-        graph = get_graph(self.rng)
-        self.num_nodes = graph.number_of_nodes()
-        self.num_edges = graph.number_of_edges()
+        # Variables that will not change over steps
+        # They might change for new episode depending on reset configuration
+        while True:
+            steady_phase, steady_dphase = self.find_steady_state(grid)
+            if steady_phase is not None and steady_dphase is not None:
+                break
+            print("Couldn't find steady state")
+            grid = self.reset_grid(grid)
+        self.initial_grid = grid
+        self.initial_steady_phase = steady_phase
+        self.initial_steady_dphase = steady_dphase
 
-        # States
-        phase, dphase = None, None
-        while phase is None or dphase is None:
-            self.initial_grid = Grid(graph, rng=self.rng)
-            phase, dphase = self.find_steady_state(self.initial_grid)
-        self.initial_phase, self.initial_dphase = phase, dphase
-        self.grid = copy.deepcopy(self.initial_grid)
-        self.phase = self.initial_phase.copy()
-        self.dphase = self.initial_dphase.copy()
-
-        # Randomly fail single node as external perturbation
-        self.marked = self.grid.mark_perturbation(RLConfig.num_pertubation)
-
-        # Reward
+        # RL variables: action/observation spaces, reward functions
         self.reward = get_reward_ftn()
+        self.action_space = self.set_action_space(grid.num_nodes)
+        self.observation_space = self.set_observation_space(
+            grid.num_nodes, grid.num_edges
+        )
 
-        # Rebalance strategy
+        # States that will change over each steps
+        self.grid = copy.deepcopy(self.initial_grid)
+        self.steady_phase = self.initial_steady_dphase.copy()
+        self.steady_dphase = self.initial_steady_dphase.copy()
+        self.marked = self.grid.mark_perturbation(RLConfig.num_pertubation)
+        self.num_steps = 0
+
+    @property
+    def rebalance(self) -> Callable[[npt.NDArray[np.float32]], bool]:
         if RLConfig.rebalance == "directed":
-            self.rebalance = self.grid.rebalance_directed
+            return partial(
+                self.grid.rebalance_directed, max_trial=RLConfig.max_rebalance
+            )
         elif RLConfig.rebalance == "undirected":
-            self.rebalance = self.grid.rebalance_undirected
+            return partial(
+                self.grid.rebalance_undirected, max_trial=RLConfig.max_rebalance
+            )
         else:
             raise ValueError(f"No such rebalance policy: {RLConfig.rebalance}")
 
-        # RL variables
-        self.steps_per_episode = 0
-        self.action_space = self.set_action_space()
-        self.observation_space = self.set_observation_space()
+    def reset_grid(self, grid: Grid) -> Grid:
+        """Reset grid according to reset level"""
+        if RLConfig.reset_graph:
+            # If reset graph, also need to update RL spaces
+            grid.reset_graph()
+            return grid
 
-    def reset_coupling(self, grid: Grid) -> Grid:
-        """Update coupling constants of edges at entire grid"""
-        coupling = grid.create_coupling(self.num_edges, self.rng)
-        grid.set_coupling(coupling)
+        if RLConfig.reset_coupling:
+            # Reset coupling
+            grid.reset_coupling()
+
+        if RLConfig.reset_node_type:
+            # Reset node type: node will automatically reset
+            grid.reset_node_types()
+        elif RLConfig.reset_node:
+            # Only reset node
+            grid.reset_nodes()
         return grid
 
+    @staticmethod
     def find_steady_state(
-        self, grid: Grid
-    ) -> tuple[npt.NDArray[np.float32] | None, npt.NDArray[np.float32] | None]:
+        grid: Grid, rng: Rng = None
+    ) -> tuple[
+        npt.NDArray[SwingConfig.dtype] | None, npt.NDArray[SwingConfig.dtype] | None
+    ]:
         """Find random initial state of given grid.
         Args
             grid: In which grid to find initial state
@@ -77,17 +97,23 @@ class Environment(gym.Env):
             phase: [N, ] phase of each node in (-pi, pi]
             dphase: [N, ] dphase (angular frequency) of each node
         """
+        if not isinstance(rng, np.random.Generator):
+            rng = np.random.default_rng(rng)
+
         # Initial random state
-        phase = np.zeros(grid.num_nodes, dtype=np.float32)
+        phase = np.zeros(grid.num_nodes, dtype=SwingConfig.dtype)
+        # phase = rng.uniform(-np.pi, np.pi, size=grid.num_nodes).astype(
+        #     SwingConfig.dtype
+        # )
         dphase = np.zeros_like(phase)
 
-        # Run swing equation
+        # Run swing equation until reaching steady time
+        time = 0.0
         solver = swing_solver(grid.weighted_adjacency_matrix, grid.params)
-        # Run default simulation steps for finding stable state
-        time, dt = 0.0, np.array(SwingConfig.dt, dtype=np.float32)
         while time < RLConfig.steady_time:
-            time += dt
-            phase, dphase = solver(phase, dphase)
+            time += SwingConfig._dt
+            phase, dphase = solver(phase=phase, dphase=dphase)
+            print(time, np.abs(dphase).max())
             if is_stable(dphase):
                 return phase, dphase
 
@@ -95,7 +121,7 @@ class Environment(gym.Env):
         return None, None
 
     def step(
-        self, action: arr32
+        self, action: npt.NDArray[np.float32]
     ) -> tuple[dict[str, Any], float, bool, bool, dict[str, Any]]:
         """
         action: (N, 1), value bounded from -1 to 1. power rebalancing weigths for generator
@@ -111,45 +137,57 @@ class Environment(gym.Env):
 
         # Rebalance power
         action *= self.grid.is_generator  # Only leave generator nodes
-        self.rebalance(action)
+        balanced = self.rebalance(action)
+        if not balanced:
+            return (
+                self.observe(),
+                reward_failed(self.grid.num_nodes, 0),
+                False,
+                True,
+                {},
+            )
+
+        # Containers to store trajectory
+        times: list[float] = []
+        phases: list[npt.NDArray[SwingConfig.dtype]] = []
+        dphases: list[npt.NDArray[SwingConfig.dtype]] = []
 
         # Run swing equation until equilibrium / next failure
         solver = swing_solver(self.grid.weighted_adjacency_matrix, self.grid.params)
-        time, num_failed, simulation_step = np.array(0.0, np.float32), 0, 0
-        times: list[arr32] = []
-        phases: list[arr32] = []
-        dphases: list[arr32] = []
-        dt = np.array(SwingConfig.dt, dtype=np.float32)
+        phase, dphase = self.steady_phase.copy(), self.steady_dphase.copy()
+        time, num_failed = 0.0, 0
         while time < RLConfig.equilibrium_time:
-            self.phase, self.dphase = solver(self.phase, self.dphase)
-            time += dt
+            phase, dphase = solver(phase=phase, dphase=dphase)
+            time += SwingConfig._dt
 
             # If any node got failed, break
-            num_failed = is_failed(self.dphase)
+            num_failed = is_failed(dphase)
             if num_failed:
                 break
 
             # Store trajectory
             times.append(time)
-            phases.append(self.phase.copy())
-            dphases.append(self.dphase.copy())
+            phases.append(phase.copy())
+            dphases.append(dphase.copy())
 
         if num_failed:
-            reward = reward_failed(num_failed, time.item())
+            reward = reward_failed(num_failed, time)
             terminated, truncated = False, True
         else:
             # No node failed until equilibrium steps: assume steady state
-            phase, dphase = self.find_steady_state(self.grid)
-            if phase is None or dphase is None:
+            steady_phase, steady_dphase = self.find_steady_state(self.grid)
+            if steady_phase is None or steady_dphase is None:
                 # Can't find steady state for current grid configuration
-                reward = reward_failed(num_failed=1, time=time.item())
+                reward = reward_failed(num_failed=1, time=time)
                 terminated, truncated = False, True
             else:
-                self.phase, self.dphase = phase, dphase
-                self.steps_per_episode += 1
+                self.steady_phase, self.steady_dphase = steady_phase, steady_dphase
+                self.num_steps += 1
 
-                reward = self.reward(np.stack(dphases), np.stack(times))
-                terminated = self.steps_per_episode == RLConfig.steps_per_episode
+                reward = self.reward(
+                    np.stack(dphases), np.array(times, dtype=SwingConfig.dtype)
+                )
+                terminated = self.num_steps == RLConfig.num_steps_per_episode
                 truncated = False
 
         # Mark next perturbation
@@ -164,51 +202,38 @@ class Environment(gym.Env):
         """Reset environments and returns to the initial observation
         Initial observation: 0 steps until failure, all nodes are not failed
         """
-        if RLConfig.reset_graph:
-            graph = get_graph(self.rng)
-            self.num_nodes = graph.number_of_nodes()
-            self.num_edges = graph.number_of_edges()
-            self.action_space = self.set_action_space()
-            self.observation_space = self.set_observation_space()
-            self.initial_grid = Grid(graph, rng=self.rng)
-        elif RLConfig.reset_coupling:
-            new_coupling = self.initial_grid.create_coupling(self.num_edges, self.rng)
-            self.initial_grid.set_coupling(new_coupling)
-
-        if RLConfig.reset_node_type:
-            new_nodes = self.initial_grid.create_nodes(self.num_nodes, rng=self.rng)
-            self.initial_grid.set_nodes(new_nodes)
-        elif RLConfig.reset_node:
-            node_types = self.initial_grid.node_types
-            new_nodes = self.initial_grid.create_nodes(
-                self.num_nodes, node_types, self.rng
-            )
-            self.initial_grid.set_nodes(new_nodes)
-
-        # If initial states are changed, re-calculate them
+        # If reset grid, re-calculate initial state
         if RLConfig.reset_coupling or RLConfig.reset_node:
-            graph = self.initial_grid.graph
-            phase, dphase = None, None
-            while phase is None or dphase is None:
-                self.initial_grid = Grid(graph, rng=self.rng)
-                phase, dphase = self.find_steady_state(self.initial_grid)
-            self.initial_phase, self.initial_dphase = phase, dphase
+            while True:
+                self.initial_grid = self.reset_grid(self.initial_grid)
+                steady_phase, steady_dphase = self.find_steady_state(self.initial_grid)
+                if steady_phase is not None and steady_dphase is not None:
+                    break
+                print("Couldn't find steady state")
+            self.initial_steady_phase = steady_phase
+            self.initial_steady_dphase = steady_dphase
+            self.action_space = self.set_action_space(self.initial_grid.num_nodes)
+            self.observation_space = self.set_observation_space(
+                self.initial_grid.num_nodes, self.initial_grid.num_edges
+            )
 
-        # Reset current states
-        self.steps_per_episode = 0
+        # Update state for new episode
         self.grid = copy.deepcopy(self.initial_grid)
-        self.phase = self.initial_phase.copy()
-        self.dphase = self.initial_dphase.copy()
+        self.steady_phase = self.initial_steady_dphase.copy()
+        self.steady_dphase = self.initial_steady_dphase.copy()
+        self.num_steps = 0
 
         # Randomly fail single node as external perturbation
         self.marked = self.grid.mark_perturbation(RLConfig.num_pertubation)
 
         return self.observe(), {}
 
-    def set_action_space(self) -> spaces.Box:
-        return spaces.Box(-1.0, 1.0, (self.num_nodes,))
+    @staticmethod
+    def set_action_space(num_nodes: int) -> spaces.Box:
+        return spaces.Box(-1.0, 1.0, (num_nodes,))
 
-    def set_observation_space(self) -> spaces.Dict:
+    @staticmethod
+    def set_observation_space(num_nodes: int, num_edges: int) -> spaces.Dict:
         observation_space: dict[str, spaces.Space] = {}
 
         if ObservationConfig.node_type:
@@ -216,32 +241,30 @@ class Environment(gym.Env):
             observation_space["node_type"] = spaces.Discrete(3)
         if ObservationConfig.phase:
             # Normalized angle, (-pi, pi]
-            observation_space["phase"] = spaces.Box(-np.pi, np.pi, (self.num_nodes,))
+            observation_space["phase"] = spaces.Box(-np.pi, np.pi, (num_nodes,))
         if ObservationConfig.dphase:
             # angular velocity: unlimited
-            observation_space["dphase"] = spaces.Box(-np.inf, np.inf, (self.num_nodes,))
+            observation_space["dphase"] = spaces.Box(-np.inf, np.inf, (num_nodes,))
         if ObservationConfig.mass:
-            observation_space["mass"] = spaces.Box(0, np.inf, (self.num_nodes,))
+            observation_space["mass"] = spaces.Box(0, np.inf, (num_nodes,))
         if ObservationConfig.gamma:
-            observation_space["gamma"] = spaces.Box(0, np.inf, (self.num_nodes,))
+            observation_space["gamma"] = spaces.Box(0, np.inf, (num_nodes,))
         if ObservationConfig.power:
             observation_space["power"] = spaces.Box(
-                -np.inf, np.inf, (self.num_nodes,), dtype=np.int64
+                -np.inf, np.inf, (num_nodes,), dtype=np.int64
             )
         if ObservationConfig.active_ratio:
-            observation_space["active_ratio"] = spaces.Box(-1.0, 1.0, (self.num_nodes,))
+            observation_space["active_ratio"] = spaces.Box(-1.0, 1.0, (num_nodes,))
         if ObservationConfig.perturbation:
             observation_space["perturbation"] = spaces.Box(
-                -1.0, 1.0, (self.num_nodes,), dtype=np.int64
+                -1.0, 1.0, (num_nodes,), dtype=np.int64
             )
         if ObservationConfig.edge_list:
             observation_space["edge_list"] = spaces.Box(
-                0, self.num_nodes - 1, (2, 2 * self.num_edges), dtype=np.int64
+                0, num_nodes - 1, (2, 2 * num_edges), dtype=np.int64
             )
         if ObservationConfig.coupling:
-            observation_space["coupling"] = spaces.Box(
-                0.0, np.inf, (2 * self.num_edges,)
-            )
+            observation_space["coupling"] = spaces.Box(0.0, np.inf, (2 * num_edges,))
 
         return spaces.Dict(observation_space)
 
@@ -253,15 +276,17 @@ class Environment(gym.Env):
                 [node_type.value for node_type in self.grid.node_types], dtype=np.int64
             )
         if ObservationConfig.phase:
-            observation["phase"] = normalize_phase(self.phase)
+            observation["phase"] = normalize_phase(self.steady_phase).astype(
+                np.float32, copy=False
+            )
         if ObservationConfig.dphase:
-            observation["dphase"] = self.dphase
+            observation["dphase"] = self.steady_dphase.astype(np.float32, copy=False)
         if ObservationConfig.mass:
-            observation["mass"] = self.grid.masses
+            observation["mass"] = self.grid.masses.astype(np.float32, copy=False)
         if ObservationConfig.gamma:
-            observation["gamma"] = self.grid.gammas
+            observation["gamma"] = self.grid.gammas.astype(np.float32, copy=False)
         if ObservationConfig.power:
-            observation["power"] = self.grid.powers
+            observation["power"] = self.grid.powers.astype(np.float32, copy=False)
         if ObservationConfig.active_ratio:
             observation["active_ratio"] = self.grid.active_ratios
         if ObservationConfig.perturbation:

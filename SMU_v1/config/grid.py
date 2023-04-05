@@ -8,14 +8,14 @@ class GridConfig:
     # Distribution of couplings of each nodes
     coupling_distribution: DistributionConfig = DistributionConfig(
         name="uniform",
-        min=1.0,
-        max=1.0,
+        min=10.0,
+        max=10.0,
     )
 
     # Number ratio: generator + renewable + consumer = 1.0
-    generator_num_ratio: float = 0.1
-    renewable_num_ratio: float = 0.1
-    consumer_num_ratio: float = 0.8
+    generator_num_ratio: float = 0.4
+    renewable_num_ratio: float = 0.2
+    consumer_num_ratio: float = 0.4
 
     # Power capacity ratio
     generator_spare: float = 1.1  # (generator capacity) = spare * (consumer capacity)
@@ -24,6 +24,8 @@ class GridConfig:
     # Initial activeness
     initial_active_ratio: float = 0.5
     initial_rebalance: str = "directed"
+    initial_max_rebalance: int = 1000
+
 
     def __post_init__(self) -> None:
         assert (
@@ -34,3 +36,4 @@ class GridConfig:
         )
 
         assert self.initial_rebalance in ["directed", "undirected"]
+

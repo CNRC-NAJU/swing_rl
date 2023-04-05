@@ -1,84 +1,26 @@
 from collections import Counter
-from typing import Type, TypeVar, cast
+from typing import TypeVar, cast
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
-import torch
-from config import GraphConfig
 
-from .ba import get_ba
-from .er import get_er
-from .rr import get_rr
-from .shk import get_shk
-
-T = TypeVar("T", np.float32, np.float64)
-arr32 = npt.NDArray[np.float32]
-arr64 = npt.NDArray[np.float64]
+T = TypeVar("T", np.float16, np.float32, np.float64, np.float128)
 
 
-def get_graph(rng: int | np.random.Generator | None = None) -> nx.Graph:
-    # Random engine
-    if not isinstance(rng, np.random.Generator):
-        rng = np.random.default_rng(rng)
-
-    num_nodes_distribution = GraphConfig.num_nodes_distribution
-    if num_nodes_distribution.name == "uniform":
-        num_nodes = rng.integers(
-            low=int(cast(float, num_nodes_distribution.min)),
-            high=int(cast(float, num_nodes_distribution.max)),
-            endpoint=True,
-        )
-    elif num_nodes_distribution.name == "normal":
-        num_nodes = np.round(
-            rng.normal(
-                loc=cast(float, num_nodes_distribution.avg),
-                scale=cast(float, num_nodes_distribution.std),
-            )
-        )
-        num_nodes = max(1, num_nodes)  # Clip
-    else:
-        raise ValueError(f"No such distribution: {num_nodes_distribution.name}")
-
-    if GraphConfig.topology == "shk":
-        return get_shk(
-            num_nodes,
-            GraphConfig.shk_p,
-            GraphConfig.shk_q,
-            GraphConfig.shk_r,
-            GraphConfig.shk_s,
-            GraphConfig.shk_initial,
-            rng,
-        )
-    elif GraphConfig.topology == "ba":
-        return get_ba(num_nodes, GraphConfig.mean_degree, rng)
-    elif GraphConfig.topology == "er":
-        return get_er(num_nodes, GraphConfig.mean_degree, rng=rng)
-    elif GraphConfig.topology == "rr":
-        return get_rr(num_nodes, GraphConfig.mean_degree, rng=rng)
-    else:
-        raise ValueError(f"No such graph topology: {GraphConfig.topology}")
-
-
-def directed2undirected(
-    edge_list: npt.NDArray[np.int64], device: torch.device | None = None
-) -> torch.LongTensor:
+def directed2undirected(edge_list: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
     """
     Get directed edge list of shape (E, 2)
     Return undirected edge index of shape (2, 2E), for torch_geometric
     """
-    edge_index = np.concatenate([edge_list, edge_list[:, (1, 0)]]).T
-    return cast(torch.LongTensor, torch.tensor(edge_index, device=device))
+    return np.concatenate([edge_list, edge_list[:, (1, 0)]]).T
 
 
 def repeat_weight(
     weights: npt.NDArray[T],
-    device: torch.device | None = None,
-    dtype: Type | None = None,
-) -> torch.Tensor:
+) -> npt.NDArray[T]:
     """repeat the weight of shape (E, ) or (E, attr) into (2E, ) or (2E, attr)"""
-    weights = np.concatenate((weights, weights))  # (2E, ) or (2E, edge_attr)
-    return torch.tensor(weights, device=device, dtype=dtype)
+    return np.concatenate((weights, weights))  # (2E, ) or (2E, edge_attr)
 
 
 def filter_gcc(graph: nx.Graph) -> nx.Graph:

@@ -1,43 +1,57 @@
-import numpy as np
 from typing import Protocol
 
+import numpy as np
 import numpy.typing as npt
-from config import RLConfig, RKConfig
-
-arr32 = npt.NDArray[np.float32]
+from config import RLConfig, SwingConfig
 
 
 class Reward(Protocol):
-    def __call__(self, dphases: arr32, times: arr32) -> float:
+    def __call__(
+        self,
+        dphases: npt.NDArray[SwingConfig.dtype],
+        times: npt.NDArray[SwingConfig.dtype],
+    ) -> float:
         ...
 
 
 class AreaReward:
-    def __call__(self, dphases: arr32, times: arr32) -> float:
+    def __call__(
+        self,
+        dphases: npt.NDArray[SwingConfig.dtype],
+        times: npt.NDArray[SwingConfig.dtype],
+    ) -> float:
         """
         R ~ 1/T sum_t [1/N sum_i abs(dphase_i)] * dt
         dphases: [S, N]
         """
-        return -np.abs(dphases).mean() * RKConfig.dt
+        return -np.mean(np.abs(dphases)).item() * SwingConfig._dt
 
 
 class SlopeReward:
-    def __call__(self, dphases: arr32, times: arr32) -> float:
+    def __call__(
+        self,
+        dphases: npt.NDArray[SwingConfig.dtype],
+        times: npt.NDArray[SwingConfig.dtype],
+    ) -> float:
         """
         R ~ [1/N sum_i abs(dphase_i[1] - dphase_i[0])] / dt
         dphases: [S, N]
         """
-        return -np.abs(dphases[1] - dphases[0]).mean() / RKConfig.dt
+        return -np.mean(np.abs(dphases[1] - dphases[0])).item() / SwingConfig._dt
 
 
 class WeightedAreaReward:
-    def __call__(self, dphases: arr32, times: arr32) -> float:
+    def __call__(
+        self,
+        dphases: npt.NDArray[SwingConfig.dtype],
+        times: npt.NDArray[SwingConfig.dtype],
+    ) -> float:
         """
         R ~ 1/T sum_t [1/N sum_i t * abs(dphase_i)] * dt
         dphases: [S, N]
         time: [S, ]
         """
-        return -np.mean(np.abs(dphases).mean(axis=1) * times)
+        return -np.mean(np.abs(dphases).mean(axis=1) * times).item()
 
 
 def get_reward_ftn() -> Reward:
@@ -60,4 +74,3 @@ def reward_failed(num_failed: int, time: float) -> float:
     R ~ num/time
     """
     return -RLConfig.failed_scale * num_failed / time
-
