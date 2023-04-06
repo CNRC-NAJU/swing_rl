@@ -54,6 +54,8 @@ class SHK:
         # Grow the network
         for new_node in range(self.initial_num_nodes, self.final_num_nodes):
             self._grow(new_node)
+            for e in self.graph.edges(data=False):
+                print(e)
 
         # save position information to graph
         nx.set_node_attributes(
@@ -76,6 +78,7 @@ class SHK:
     def _MST(self) -> nx.Graph:
         """Minimum Spanning Tree using euclidean distance between node positions"""
         graph = nx.Graph()
+        graph.add_nodes_from(range(self.initial_num_nodes))
 
         # Store euclidean distance as edge weight
         for i, j in itertools.combinations(range(self.initial_num_nodes), 2):
@@ -134,9 +137,13 @@ class SHK:
 
     def _grow(self, new_node: int) -> None:
         """Grow network"""
+        print("------------------------")
+        print(f"N={self.graph.number_of_nodes()}, {new_node=}")
         if self.rng.random() < self.s and self.graph.number_of_edges():
+            print("bridge")
             self._bridge(new_node)
         else:
+            print("steady")
             self._steady(new_node)
 
     def _bridge(self, new_node: int) -> None:
@@ -164,17 +171,20 @@ class SHK:
         )
         node = np.argmin(euclidean_dist_to_new_node).item()
         self.graph.add_edge(node, new_node)
+        print("first", node, new_node)
 
         if self.rng.random() < self.p:
             # Add edge with node having maximum fr value
             node = self._find_max_fr_node(new_node, network_size=new_node)
             self.graph.add_edge(node, new_node)
+            print("second", node, new_node)
 
         if self.rng.random() < self.q and self.graph.number_of_nodes() > 2:
             # Choose random node and add edge with another node having maximum fr value
             node1 = self.rng.integers(new_node)
             node2 = self._find_max_fr_node(node1, network_size=new_node)
             self.graph.add_edge(*sorted([node1, node2]))  # Add edge with sorted index
+            print("third", node1, node2)
 
     def _find_max_fr_node(self, target: int, network_size: int) -> int:
         """
@@ -206,6 +216,10 @@ class SHK:
             fr[neighbor] = 0
 
         # Return index of node with maximum fr
+        if np.allclose(fr[0], fr):
+            # When all fr values are equal, every other nodes is connected to target
+            # In this case, return any node, other than target itself
+            return (target + 1) % network_size
         return np.argmax(fr).item()
 
     @overload
