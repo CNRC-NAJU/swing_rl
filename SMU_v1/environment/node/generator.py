@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from config import GeneratorConfig
+from config import NODE_CONFIG
 
 from .node import Node
 from .type import NodeType
@@ -10,17 +10,17 @@ class Generator(Node):
     def __init__(self, max_units: int = 0) -> None:
         super().__init__(max_units)
 
-        config = GeneratorConfig()
-        self.unit_power = config.unit_power
-        self.unit_mass = config.unit_mass
-        self.unit_gamma = config.unit_gamma
+        self.unit_power = NODE_CONFIG.generator_unit_power
+        self.unit_mass = NODE_CONFIG.generator_unit_mass
+        self.unit_gamma = NODE_CONFIG.generator_unit_gamma
 
     @classmethod
     def from_capacity(cls, capacity: int) -> Generator:
-        config = GeneratorConfig()
-        assert capacity % config.unit_power == 0, f"Capacity not valid: {capacity}"
+        assert (
+            capacity % NODE_CONFIG.generator_unit_power == 0
+        ), f"Capacity not valid: {capacity}"
 
-        return cls(capacity // config.unit_power)
+        return cls(capacity // NODE_CONFIG.generator_unit_power)
 
     @property
     def type(self) -> NodeType:

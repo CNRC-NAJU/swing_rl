@@ -4,20 +4,16 @@ from typing import cast
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
-from config import GeneratorConfig, GridConfig, RenewableConfig, SwingConfig
+from config import GRID_CONFIG, SWING_CONFIG
 
 from .distribution import distribute_capacity
 from .graph.create import create_graph
-from .graph.utils import (
-    directed2undirected,
-    get_edge_list,
-    get_weighted_adjacency_matrix,
-    repeat_weight,
-)
+from .graph.utils import (directed2undirected, get_edge_list,
+                          get_weighted_adjacency_matrix, repeat_weight)
 from .node import Consumer, Generator, Node, NodeType, Renewable
 
 Rng = np.random.Generator | int | None
-DTYPE = SwingConfig().dtype
+DTYPE = SWING_CONFIG.dtype
 
 
 class Grid:
@@ -68,7 +64,7 @@ class Grid:
         self.set_node_types(node_types)
 
         # Initialize nodes
-        self.nodes: list
+        self.nodes: list[Node]
         if nodes is None:
             nodes = self.create_nodes(self.node_types, rng=self.rng)
         self.set_nodes(nodes)
@@ -131,13 +127,12 @@ class Grid:
     @staticmethod
     def create_couplings(num_edges: int, rng: Rng = None) -> npt.NDArray[DTYPE]:
         """Create couplings of each edges"""
-        grid_config = GridConfig()
         # Random engine
         if not isinstance(rng, np.random.Generator):
             rng = np.random.default_rng(rng)
 
         # Assign coupling constant to each edges
-        coupling_distribution = grid_config.coupling_distribution
+        coupling_distribution = GRID_CONFIG.coupling_distribution
         if coupling_distribution.name == "uniform":
             coupling = rng.uniform(
                 low=cast(float, coupling_distribution.min),
@@ -186,15 +181,13 @@ class Grid:
     @staticmethod
     def create_node_types(num_nodes: int, rng: Rng = None) -> list[NodeType]:
         """Create list of node types, following proper configurations"""
-        grid_config = GridConfig()
-
         # Random engine
         if not isinstance(rng, np.random.Generator):
             rng = np.random.default_rng(rng)
 
         # Number of each node types, following configuration
-        num_generators = int(num_nodes * grid_config.generator_num_ratio)
-        num_renewables = int(num_nodes * grid_config.renewable_num_ratio)
+        num_generators = int(num_nodes * GRID_CONFIG.generator_num_ratio)
+        num_renewables = int(num_nodes * GRID_CONFIG.renewable_num_ratio)
         num_consumers = num_nodes - num_generators - num_renewables
 
         # list of node types
@@ -225,10 +218,6 @@ class Grid:
     @staticmethod
     def create_nodes(node_types: list[NodeType], rng: Rng = None) -> list[Node]:
         """Create list of nodes, following proper configurations and node types"""
-        grid_config = GridConfig()
-        renewable_config = RenewableConfig()
-        generator_config = GeneratorConfig()
-
         # Random engine
         if not isinstance(rng, np.random.Generator):
             rng = np.random.default_rng(rng)
@@ -243,40 +232,77 @@ class Grid:
         num_consumers = sum(node_type is NodeType.CONSUMER for node_type in node_types)
 
         # Create consumers
-        consumers: list[Node] = [Consumer.randomly(rng) for _ in range(num_consumers)]
+        max_units_distribution = GRID_CONFIG.consumer_max_units_distribution
+        if max_units_distribution.name == "uniform":
+            consumer_max_units = rng.integers(
+                low=int(cast(float, max_units_distribution.min)),
+                high=int(cast(float, max_units_distribution.max)),
+                endpoint=True,
+                size=num_consumers,
+            )
+        elif max_units_distribution.name == "normal":
+            consumer_max_units = rng.normal(
+                loc=cast(float, max_units_distribution.avg),
+                scale=cast(float, max_units_distribution.std),
+                size=num_consumers,
+            )
+            # Round + Clipping: max_units > 1
+            consumer_max_units = np.clip(np.round(consumer_max_units), 1, None)
+        else:
+            raise ValueError(f"No such distribution {max_units_distribution.name}")
+        consumers: list[Node] = [
+            Consumer(max_units) for max_units in consumer_max_units
+        ]
 
         # Calculate total capacity of consumers/generators/renewables
         consumer_tot_capacity = abs(sum(consumer.capacity for consumer in consumers))
         generator_tot_capacity = math.ceil(
-            consumer_tot_capacity * grid_config.generator_spare
+            consumer_tot_capacity * GRID_CONFIG.generator_spare
         )
         renewable_tot_capacity = math.ceil(
-            generator_tot_capacity / grid_config.source_ratio
+            generator_tot_capacity / GRID_CONFIG.source_ratio
         )
 
         # Create generators, with distributed capacities
-        # Randomly distribute generator capacities
-        capacities = distribute_capacity(
+        generator_capacities = distribute_capacity(
             generator_tot_capacity,
             num_generators,
-            generator_config.capacity_distribution_name,
-            generator_config.capacity_distribution_param,
+            GRID_CONFIG.generator_capacity_distribution,
             rng,
         )
         generators: list[Node] = [
-            Generator.from_capacity(capacity) for capacity in capacities
+            Generator.from_capacity(capacity) for capacity in generator_capacities
         ]
 
-        # Create renewables, with distributed capacities
-        capacities = distribute_capacity(
+        # Create renewables, with distributed capacities, masses
+        renewable_capacities = distribute_capacity(
             renewable_tot_capacity,
             num_renewables,
-            renewable_config.capacity_distribution_name,
-            renewable_config.capacity_distribution_param,
+            GRID_CONFIG.renewable_capacity_distribution,
             rng,
         )
+        renewable_mass_distribution = GRID_CONFIG.renewable_mass_distribution
+        if renewable_mass_distribution.name == "uniform":
+            renewable_masses = rng.uniform(
+                low=cast(float, renewable_mass_distribution.min),
+                high=cast(float, renewable_mass_distribution.max),
+                size=num_renewables,
+            )
+        elif renewable_mass_distribution.name == "normal":
+            renewable_masses = rng.normal(
+                loc=cast(float, renewable_mass_distribution.avg),
+                scale=cast(float, renewable_mass_distribution.std),
+                size=num_renewables,
+            )
+            # Round + Clipping: max_units > 1
+            renewable_masses = np.clip(np.round(renewable_masses), 0.0, None)
+        else:
+            raise NotImplementedError(
+                f"No such distribution {renewable_mass_distribution.name}"
+            )
         renewables: list[Node] = [
-            Renewable.randomly_from_capacity(capacity, rng) for capacity in capacities
+            Renewable.from_capacity(capacity, mass)
+            for capacity, mass in zip(renewable_capacities, renewable_masses)
         ]
 
         # concatenate generators, renewables, consumers in order of their types
@@ -323,19 +349,18 @@ class Grid:
 
     def activate(self) -> None:
         """Activate each nodes for proper amount"""
-        grid_config = GridConfig()
-        if grid_config.initial_rebalance == "directed":
+        if GRID_CONFIG.initial_rebalance == "directed":
             rebalance = self.rebalance_directed
-        elif grid_config.initial_rebalance == "undirected":
+        elif GRID_CONFIG.initial_rebalance == "undirected":
             rebalance = self.rebalance_undirected
         else:
             raise ValueError(
-                f"No such rebalance strategy: {grid_config.initial_rebalance}"
+                f"No such rebalance strategy: {GRID_CONFIG.initial_rebalance}"
             )
 
         # Increase active units at each of nodes
         for node in self.nodes:
-            num_active_units = int(grid_config.initial_active_ratio * node.max_units)
+            num_active_units = int(GRID_CONFIG.initial_active_ratio * node.max_units)
             for _ in range(num_active_units):
                 node.increase()
 
@@ -345,7 +370,7 @@ class Grid:
             weights = self.rng.choice(
                 np.array([-1.0, 1.0], dtype=np.float32), size=self.num_nodes
             )
-            balanced = rebalance(weights, grid_config.initial_max_rebalance)
+            balanced = rebalance(weights, GRID_CONFIG.initial_max_rebalance)
 
     def rebalance_undirected(
         self, weights: npt.NDArray[np.float32], max_trial: int

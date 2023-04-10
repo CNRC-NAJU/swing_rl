@@ -2,7 +2,7 @@ from typing import TypeVar
 
 import numpy as np
 import numpy.typing as npt
-from config import RLConfig
+from config import RL_CONFIG
 
 T = TypeVar("T", np.float16, np.float32, np.float64, np.float128)
 
@@ -12,12 +12,12 @@ def normalize_phase(phase: npt.NDArray[T]) -> npt.NDArray[T]:
     return ((phase + np.pi) % (2 * np.pi) - np.pi).view(phase.dtype)
 
 
-def is_stable(dphase: npt.NDArray[T]) -> bool:
+def is_stable(dphase: npt.NDArray) -> bool:
     """Check if all dphase are smaller than eps
     For float32 precision, 1e-4 is adequte"""
-    return np.all(np.abs(dphase) < RLConfig().stable_threshold).item()
+    return np.all(np.abs(dphase) < RL_CONFIG.stable_threshold).item()
 
 
-def is_failed(dphase: npt.NDArray[T]) -> int:
+def is_failed(dphase: npt.NDArray) -> int:
     """Return number of failed nodes"""
-    return (dphase > RLConfig().fail_threshold).sum()
+    return (dphase > RL_CONFIG.fail_threshold).sum()

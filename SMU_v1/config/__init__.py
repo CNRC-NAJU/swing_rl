@@ -1,10 +1,8 @@
-from .config import Config
-from .consumer import ConsumerConfig
+from .config import CONFIG, Config
 from .distribution import DistributionConfig
-from .generator import GeneratorConfig
-from .graph import GraphConfig
-from .grid import GridConfig
-from .observation import ObservationConfig
-from .renewable import RenewableConfig
-from .rl import RLConfig
-from .swing import SwingConfig
+from .graph import GRAPH_CONFIG, GraphConfig
+from .grid import GRID_CONFIG, GridConfig
+from .node import NODE_CONFIG
+from .observation import OBSERVATION_CONFIG, ObservationConfig
+from .rl import RL_CONFIG, RLConfig
+from .swing import SWING_CONFIG, SwingConfig

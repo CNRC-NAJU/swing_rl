@@ -1,4 +1,7 @@
+from typing import cast
+
 import numpy as np
+from config.distribution import DistributionConfig
 
 Rng = np.random.Generator | int | None
 
@@ -71,8 +74,7 @@ def normal_integers_with_sum(
 def distribute_capacity(
     tot_capacity: int,
     num: int,
-    distribution_name: str,
-    distribution_param: float,
+    distribution_config: DistributionConfig,
     rng: Rng = None,
 ) -> list[int]:
     """
@@ -85,15 +87,15 @@ def distribute_capacity(
     if not isinstance(rng, np.random.Generator):
         rng = np.random.default_rng(rng)
 
-    if distribution_name == "uniform":
+    if distribution_config.name == "uniform_wo_avg":
         capacities = uniform_integers_with_sum(
-            tot_capacity, num, int(distribution_param), rng
+            tot_capacity, num, int(cast(float, distribution_config.delta)), rng
         )
-    elif distribution_name == "normal":
+    elif distribution_config.name == "normal_wo_avg":
         capacities = normal_integers_with_sum(
-            tot_capacity, num, distribution_param, rng
+            tot_capacity, num, cast(float, distribution_config.std), rng
         )
     else:
-        raise ValueError(f"No such distribution: {distribution_name}")
+        raise ValueError(f"Invalid distribution: {distribution_config.name}")
 
     return capacities

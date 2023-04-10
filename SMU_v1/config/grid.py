@@ -1,14 +1,11 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any
 
 from .distribution import DistributionConfig
-from .singleton import Singleton
 
 
 @dataclass
-class GridConfig(metaclass=Singleton):
+class GridConfig:
     # Distribution of couplings of each nodes
     coupling_distribution: DistributionConfig = DistributionConfig(
         name="uniform",
@@ -20,6 +17,20 @@ class GridConfig(metaclass=Singleton):
     generator_num_ratio: float = 0.4
     renewable_num_ratio: float = 0.2
     consumer_num_ratio: float = 0.4
+
+    # Distribution of nodes
+    generator_capacity_distribution: DistributionConfig = DistributionConfig(
+        name="uniform_wo_avg", delta=4.0
+    )
+    renewable_capacity_distribution: DistributionConfig = DistributionConfig(
+        name="uniform_wo_avg", delta=4.0
+    )
+    renewable_mass_distribution: DistributionConfig = DistributionConfig(
+        name="uniform", min=0.1, max=0.1
+    )
+    consumer_max_units_distribution: DistributionConfig = DistributionConfig(
+        name="uniform", min=10.0, max=10.0
+    )
 
     # Power capacity ratio
     generator_spare: float = 1.1  # (generator capacity) = spare * (consumer capacity)
@@ -40,12 +51,26 @@ class GridConfig(metaclass=Singleton):
 
         assert self.initial_rebalance in ["directed", "undirected"]
 
-    @classmethod
-    def from_dict(cls, config: dict[str, Any]) -> GridConfig:
-        distribution = DistributionConfig(**config.pop("coupling_distribution"))
+    def from_dict(self, config: dict[str, Any]) -> None:
+        # Pop distributions
+        self.coupling_distribution = DistributionConfig(
+            **config.pop("coupling_distribution")
+        )
+        self.generator_capacity_distribution = DistributionConfig(
+            **config.pop("generator_capacity_distribution")
+        )
+        self.renewable_mass_distribution = DistributionConfig(
+            **config.pop("renewable_mass_distribution")
+        )
+        self.renewable_capacity_distribution = DistributionConfig(
+            **config.pop("renewable_capacity_distribution")
+        )
+        self.consumer_max_units_distribution = DistributionConfig(
+            **config.pop("consumer_max_units_distribution")
+        )
 
-        grid = cls(coupling_distribution=distribution)
         for key, value in config.items():
-            setattr(grid, key, value)
+            setattr(self, key, value)
 
-        return grid
+
+GRID_CONFIG = GridConfig()

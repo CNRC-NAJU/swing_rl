@@ -2,9 +2,9 @@ from typing import Protocol
 
 import numpy as np
 import numpy.typing as npt
-from config import RLConfig, SwingConfig
+from config import RL_CONFIG, SWING_CONFIG
 
-DTYPE = SwingConfig().dtype
+DTYPE = SWING_CONFIG.dtype
 
 
 class Reward(Protocol):
@@ -18,7 +18,7 @@ class AreaReward:
         R ~ 1/T sum_t [1/N sum_i abs(dphase_i)] * dt
         dphases: [S, N]
         """
-        return -np.mean(np.abs(dphases)).item() * SwingConfig._dt
+        return -np.mean(np.abs(dphases)).item() * SWING_CONFIG._dt
 
 
 class SlopeReward:
@@ -27,7 +27,7 @@ class SlopeReward:
         R ~ [1/N sum_i abs(dphase_i[1] - dphase_i[0])] / dt
         dphases: [S, N]
         """
-        return -np.mean(np.abs(dphases[1] - dphases[0])).item() / SwingConfig._dt
+        return -np.mean(np.abs(dphases[1] - dphases[0])).item() / SWING_CONFIG._dt
 
 
 class WeightedAreaReward:
@@ -41,15 +41,14 @@ class WeightedAreaReward:
 
 
 def get_reward_ftn() -> Reward:
-    rl_config = RLConfig()
-    if rl_config.reward == "area":
+    if RL_CONFIG.reward == "area":
         return AreaReward()
-    elif rl_config.reward == "slope":
+    elif RL_CONFIG.reward == "slope":
         return SlopeReward()
-    elif rl_config.reward == "weighted_area":
+    elif RL_CONFIG.reward == "weighted_area":
         return WeightedAreaReward()
     else:
-        raise ValueError(f"No such reward: {rl_config.reward}")
+        raise ValueError(f"No such reward: {RL_CONFIG.reward}")
 
 
 def reward_failed(num_failed: int, time: float) -> float:
@@ -60,4 +59,4 @@ def reward_failed(num_failed: int, time: float) -> float:
 
     R ~ num/time
     """
-    return -RLConfig().failed_scale * num_failed / time
+    return -RL_CONFIG.failed_scale * num_failed / time

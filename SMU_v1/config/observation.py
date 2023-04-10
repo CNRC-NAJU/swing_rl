@@ -1,13 +1,9 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any
 
-from .singleton import Singleton
-
 
 @dataclass
-class ObservationConfig(metaclass=Singleton):
+class ObservationConfig:
     node_type: bool = True
     phase: bool = True
     dphase: bool = True
@@ -19,10 +15,9 @@ class ObservationConfig(metaclass=Singleton):
     edge_list: bool = True
     coupling: bool = True
 
-    @classmethod
-    def from_dict(cls, config: dict[str, Any]) -> ObservationConfig:
-        observation = cls()
+    def from_dict(self, config: dict[str, Any]) -> None:
         for key, value in config.items():
-            setattr(observation, key, value)
+            setattr(self, key, value)
 
-        return observation
+
+OBSERVATION_CONFIG = ObservationConfig()

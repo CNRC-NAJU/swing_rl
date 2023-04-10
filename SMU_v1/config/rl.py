@@ -1,13 +1,9 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any
 
-from .singleton import Singleton
-
 
 @dataclass
-class RLConfig(metaclass=Singleton):
+class RLConfig:
     # Number of perturbated nodes at each steps
     num_pertubation: int = 1
 
@@ -57,10 +53,9 @@ class RLConfig(metaclass=Singleton):
 
         assert self.reward in ["area", "slope", "weighted_area"]
 
-    @classmethod
-    def from_dict(cls, config: dict[str, Any]) -> RLConfig:
-        rl = cls()
+    def from_dict(self, config: dict[str, Any]) -> None:
         for key, value in config.items():
-            setattr(rl, key, value)
+            setattr(self, key, value)
 
-        return rl
+
+RL_CONFIG = RLConfig()

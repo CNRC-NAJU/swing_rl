@@ -6,7 +6,7 @@ import gymnasium as gym
 import gymnasium.spaces as spaces
 import numpy as np
 import numpy.typing as npt
-from config import ObservationConfig, RLConfig, SwingConfig
+from config import OBSERVATION_CONFIG, RL_CONFIG, SWING_CONFIG
 
 from .grid import Grid
 from .reward import get_reward_ftn, reward_failed
@@ -14,7 +14,7 @@ from .swing.solver import swing_solver
 from .trajectory import is_failed, is_stable, normalize_phase
 
 Rng = np.random.Generator | int | None
-DTYPE = SwingConfig().dtype
+DTYPE = SWING_CONFIG.dtype
 
 
 class Environment(gym.Env):
@@ -49,39 +49,37 @@ class Environment(gym.Env):
         self.grid = copy.deepcopy(self.initial_grid)
         self.steady_phase = self.initial_steady_dphase.copy()
         self.steady_dphase = self.initial_steady_dphase.copy()
-        self.marked = self.grid.mark_perturbation(RLConfig.num_pertubation)
+        self.marked = self.grid.mark_perturbation(RL_CONFIG.num_pertubation)
         self.num_steps = 0
 
     @property
     def rebalance(self) -> Callable[[npt.NDArray[np.float32]], bool]:
-        rl_config = RLConfig()
-        if rl_config.rebalance == "directed":
+        if RL_CONFIG.rebalance == "directed":
             return partial(
-                self.grid.rebalance_directed, max_trial=rl_config.max_rebalance
+                self.grid.rebalance_directed, max_trial=RL_CONFIG.max_rebalance
             )
-        elif rl_config.rebalance == "undirected":
+        elif RL_CONFIG.rebalance == "undirected":
             return partial(
-                self.grid.rebalance_undirected, max_trial=rl_config.max_rebalance
+                self.grid.rebalance_undirected, max_trial=RL_CONFIG.max_rebalance
             )
         else:
-            raise ValueError(f"No such rebalance policy: {rl_config.rebalance}")
+            raise ValueError(f"No such rebalance policy: {RL_CONFIG.rebalance}")
 
     def reset_grid(self, grid: Grid) -> Grid:
         """Reset grid according to reset level"""
-        rl_config = RLConfig()
-        if rl_config.reset_graph:
+        if RL_CONFIG.reset_graph:
             # If reset graph, also need to update RL spaces
             grid.reset_graph()
             return grid
 
-        if rl_config.reset_coupling:
+        if RL_CONFIG.reset_coupling:
             # Reset coupling
             grid.reset_coupling()
 
-        if rl_config.reset_node_type:
+        if RL_CONFIG.reset_node_type:
             # Reset node type: node will automatically reset
             grid.reset_node_types()
-        elif rl_config.reset_node:
+        elif RL_CONFIG.reset_node:
             # Only reset node
             grid.reset_nodes()
         return grid
@@ -108,8 +106,8 @@ class Environment(gym.Env):
         # Run swing equation until reaching steady time
         time = 0.0
         solver = swing_solver(grid.weighted_adjacency_matrix, grid.params)
-        while time < RLConfig.steady_time:
-            time += SwingConfig._dt
+        while time < RL_CONFIG.steady_time:
+            time += SWING_CONFIG._dt
             phase, dphase = solver(phase=phase, dphase=dphase)
             print(time, np.abs(dphase).max())
             if is_stable(dphase):
@@ -130,8 +128,6 @@ class Environment(gym.Env):
         truncated: True if the episode is finished before termination
         info: Nothing
         """
-        rl_config, swing_config = RLConfig(), SwingConfig()
-
         # Perturbate the node powers
         self.grid.perturbate(self.marked)
 
@@ -156,9 +152,9 @@ class Environment(gym.Env):
         solver = swing_solver(self.grid.weighted_adjacency_matrix, self.grid.params)
         phase, dphase = self.steady_phase.copy(), self.steady_dphase.copy()
         time, num_failed = 0.0, 0
-        while time < rl_config.equilibrium_time:
+        while time < RL_CONFIG.equilibrium_time:
             phase, dphase = solver(phase=phase, dphase=dphase)
-            time += swing_config._dt
+            time += SWING_CONFIG._dt
 
             # If any node got failed, break
             num_failed = is_failed(dphase)
@@ -185,11 +181,11 @@ class Environment(gym.Env):
                 self.num_steps += 1
 
                 reward = self.reward(np.stack(dphases), np.array(times, dtype=DTYPE))
-                terminated = self.num_steps == rl_config.num_steps_per_episode
+                terminated = self.num_steps == RL_CONFIG.num_steps_per_episode
                 truncated = False
 
         # Mark next perturbation
-        self.marked = self.grid.mark_perturbation(rl_config.num_pertubation)
+        self.marked = self.grid.mark_perturbation(RL_CONFIG.num_pertubation)
 
         # Observe state
         observation = self.observe()
@@ -200,10 +196,8 @@ class Environment(gym.Env):
         """Reset environments and returns to the initial observation
         Initial observation: 0 steps until failure, all nodes are not failed
         """
-        rl_config = RLConfig()
-
         # If reset grid, re-calculate initial state
-        if rl_config.reset_coupling or rl_config.reset_node:
+        if RL_CONFIG.reset_coupling or RL_CONFIG.reset_node:
             while True:
                 self.initial_grid = self.reset_grid(self.initial_grid)
                 steady_phase, steady_dphase = self.find_steady_state(self.initial_grid)
@@ -224,7 +218,7 @@ class Environment(gym.Env):
         self.num_steps = 0
 
         # Randomly fail single node as external perturbation
-        self.marked = self.grid.mark_perturbation(rl_config.num_pertubation)
+        self.marked = self.grid.mark_perturbation(RL_CONFIG.num_pertubation)
 
         return self.observe(), {}
 
@@ -234,68 +228,66 @@ class Environment(gym.Env):
 
     @staticmethod
     def set_observation_space(num_nodes: int, num_edges: int) -> spaces.Dict:
-        observation_config = ObservationConfig()
         observation_space: dict[str, spaces.Space] = {}
 
-        if observation_config.node_type:
+        if OBSERVATION_CONFIG.node_type:
             # 3 types: generator/renewable/consumer
             observation_space["node_type"] = spaces.Discrete(3)
-        if observation_config.phase:
+        if OBSERVATION_CONFIG.phase:
             # Normalized angle, (-pi, pi]
             observation_space["phase"] = spaces.Box(-np.pi, np.pi, (num_nodes,))
-        if observation_config.dphase:
+        if OBSERVATION_CONFIG.dphase:
             # angular velocity: unlimited
             observation_space["dphase"] = spaces.Box(-np.inf, np.inf, (num_nodes,))
-        if observation_config.mass:
+        if OBSERVATION_CONFIG.mass:
             observation_space["mass"] = spaces.Box(0, np.inf, (num_nodes,))
-        if observation_config.gamma:
+        if OBSERVATION_CONFIG.gamma:
             observation_space["gamma"] = spaces.Box(0, np.inf, (num_nodes,))
-        if observation_config.power:
+        if OBSERVATION_CONFIG.power:
             observation_space["power"] = spaces.Box(
                 -np.inf, np.inf, (num_nodes,), dtype=np.int64
             )
-        if observation_config.active_ratio:
+        if OBSERVATION_CONFIG.active_ratio:
             observation_space["active_ratio"] = spaces.Box(-1.0, 1.0, (num_nodes,))
-        if observation_config.perturbation:
+        if OBSERVATION_CONFIG.perturbation:
             observation_space["perturbation"] = spaces.Box(
                 -1.0, 1.0, (num_nodes,), dtype=np.int64
             )
-        if observation_config.edge_list:
+        if OBSERVATION_CONFIG.edge_list:
             observation_space["edge_list"] = spaces.Box(
                 0, num_nodes - 1, (2, 2 * num_edges), dtype=np.int64
             )
-        if observation_config.coupling:
+        if OBSERVATION_CONFIG.coupling:
             observation_space["coupling"] = spaces.Box(0.0, np.inf, (2 * num_edges,))
 
         return spaces.Dict(observation_space)
 
     def observe(self) -> dict[str, Any]:
-        observation_config = ObservationConfig()
         observation: dict[str, Any] = {}
 
-        if observation_config.node_type:
+        if OBSERVATION_CONFIG.node_type:
             observation["node_type"] = np.array(
                 [node_type.value for node_type in self.grid.node_types], dtype=np.int64
             )
-        if observation_config.phase:
+        if OBSERVATION_CONFIG.phase:
             observation["phase"] = normalize_phase(
                 self.steady_phase.astype(np.float32, copy=False)
             )
-        if observation_config.dphase:
+        if OBSERVATION_CONFIG.dphase:
             observation["dphase"] = self.steady_dphase.astype(np.float32, copy=False)
-        if observation_config.mass:
+        if OBSERVATION_CONFIG.mass:
             observation["mass"] = self.grid.masses.astype(np.float32, copy=False)
-        if observation_config.gamma:
+        if OBSERVATION_CONFIG.gamma:
             observation["gamma"] = self.grid.gammas.astype(np.float32, copy=False)
-        if observation_config.power:
+        if OBSERVATION_CONFIG.power:
             observation["power"] = self.grid.powers.astype(np.float32, copy=False)
-        if observation_config.active_ratio:
+        if OBSERVATION_CONFIG.active_ratio:
             observation["active_ratio"] = self.grid.active_ratios
-        if observation_config.perturbation:
+        if OBSERVATION_CONFIG.perturbation:
             observation["perturbation"] = self.marked
-        if observation_config.edge_list:
+        if OBSERVATION_CONFIG.edge_list:
             observation["edge_list"] = self.grid.edge_list
-        if observation_config.coupling:
+        if OBSERVATION_CONFIG.coupling:
             observation["coupling"] = self.grid.coupling
 
         return observation

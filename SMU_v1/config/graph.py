@@ -1,14 +1,11 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any
 
 from .distribution import DistributionConfig
-from .singleton import Singleton
 
 
 @dataclass
-class GraphConfig(metaclass=Singleton):
+class GraphConfig:
     topology: str = "shk"
 
     # Distribution of network size
@@ -28,12 +25,12 @@ class GraphConfig(metaclass=Singleton):
     def __post__init__(self) -> None:
         assert self.topology in ["shk", "ba", "er", "rr"]
 
-    @classmethod
-    def from_dict(cls, config: dict[str, Any]) -> GraphConfig:
-        distribution = DistributionConfig(**config.pop("num_nodes_distribution"))
-
-        graph = cls(num_nodes_distribution=distribution)
+    def from_dict(self, config: dict[str, Any]) -> None:
+        self.num_nodes_distribution = DistributionConfig(
+            **config.pop("num_nodes_distribution")
+        )
         for key, value in config.items():
-            setattr(graph, key, value)
+            setattr(self, key, value)
 
-        return graph
+
+GRAPH_CONFIG = GraphConfig()

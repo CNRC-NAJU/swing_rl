@@ -6,29 +6,23 @@ from typing import Any
 
 import yaml
 
-from .consumer import ConsumerConfig
-from .generator import GeneratorConfig
-from .graph import GraphConfig
-from .grid import GridConfig
-from .observation import ObservationConfig
-from .renewable import RenewableConfig
-from .rl import RLConfig
-from .singleton import Singleton
-from .swing import SwingConfig
+from .graph import GRAPH_CONFIG, GraphConfig
+from .grid import GRID_CONFIG, GridConfig
+from .node import NODE_CONFIG, NodeConfig
+from .observation import OBSERVATION_CONFIG, ObservationConfig
+from .rl import RL_CONFIG, RLConfig
+from .swing import SWING_CONFIG, SwingConfig
 
 
 @dataclass
-class Config(metaclass=Singleton):
-    consumer: ConsumerConfig = ConsumerConfig()
-    generator: GeneratorConfig = GeneratorConfig()
-    renewable: RenewableConfig = RenewableConfig()
+class Config:
+    node: NodeConfig = NODE_CONFIG
+    graph: GraphConfig = GRAPH_CONFIG
+    grid: GridConfig = GRID_CONFIG
 
-    graph: GraphConfig = GraphConfig()
-    grid: GridConfig = GridConfig()
-
-    observation: ObservationConfig = ObservationConfig()
-    rl: RLConfig = RLConfig()
-    swing: SwingConfig = SwingConfig()
+    observation: ObservationConfig = OBSERVATION_CONFIG
+    rl: RLConfig = RL_CONFIG
+    swing: SwingConfig = SWING_CONFIG
 
     @property
     def dict(self) -> dict[str, Any]:
@@ -38,21 +32,17 @@ class Config(metaclass=Singleton):
         with open(file_path, "w") as f:
             yaml.safe_dump(self.dict, f)
 
-    @classmethod
-    def from_yaml(cls, file_path: Path | str) -> Config:
+    def from_yaml(self, file_path: Path | str) -> None:
         with open(file_path, "r") as f:
             config: dict[str, Any] = yaml.safe_load(f)
 
-        ConsumerConfig.from_dict(config.pop("consumer"))
-        GeneratorConfig.from_dict(config.pop("generator"))
-        RenewableConfig.from_dict(config.pop("renewable"))
+        self.node.from_dict(config.pop("node"))
+        self.graph.from_dict(config.pop("graph"))
+        self.grid.from_dict(config.pop("grid"))
 
-        GraphConfig.from_dict(config.pop("graph"))
-        GridConfig.from_dict(config.pop("grid"))
+        self.observation.from_dict(config.pop("observation"))
+        self.rl.from_dict(config.pop("rl"))
+        self.swing.from_dict(config.pop("swing"))
 
-        ObservationConfig.from_dict(config.pop("observation"))
-        RLConfig.from_dict(config.pop("rl"))
-        SwingConfig.from_dict(config.pop("swing"))
 
-        return cls()
-
+CONFIG = Config()

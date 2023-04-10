@@ -1,16 +1,11 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any, Type
 
 import numpy as np
 import numpy.typing as npt
 
-from .singleton import Singleton
-
-
 @dataclass
-class SwingConfig(metaclass=Singleton):
+class SwingConfig():
     # which solver to solve swing equation
     # e.g., RK1: "rk1",  "rk1_original", "rk1_sparse"
     #       RK2: "rk2",  "rk2_original", "rk2_sparse"
@@ -54,10 +49,9 @@ class SwingConfig(metaclass=Singleton):
     def dt(self) -> npt.NDArray:
         return np.array(self._dt, dtype=self.dtype)
 
-    @classmethod
-    def from_dict(cls, config: dict[str, Any]) -> SwingConfig:
-        swing = cls()
+    def from_dict(self, config: dict[str, Any]) -> None:
         for key, value in config.items():
-            setattr(swing, key, value)
+            setattr(self, key, value)
 
-        return swing
+
+SWING_CONFIG = SwingConfig()

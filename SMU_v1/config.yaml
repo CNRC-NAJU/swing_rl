@@ -1,23 +1,8 @@
-consumer:
-  max_units_distribution:
-    avg: null
-    max: 10.0
-    min: 10.0
-    name: uniform
-    std: null
-  unit_gamma: 1.0
-  unit_mass: 1.0
-  unit_power: -1
-generator:
-  capacity_distribution_name: uniform
-  capacity_distribution_param: 4.0
-  unit_gamma: 1.0
-  unit_mass: 1.0
-  unit_power: 1
 graph:
   mean_degree: 4.0
   num_nodes_distribution:
     avg: null
+    delta: null
     max: 10.0
     min: 10.0
     name: uniform
@@ -29,20 +14,58 @@ graph:
   shk_s: 0.1
   topology: shk
 grid:
+  consumer_max_units_distribution:
+    avg: null
+    delta: null
+    max: 10.0
+    min: 10.0
+    name: uniform
+    std: null
   consumer_num_ratio: 0.4
   coupling_distribution:
     avg: null
-    max: 1.0
-    min: 1.0
+    delta: null
+    max: 10.0
+    min: 10.0
     name: uniform
+    std: null
+  generator_capacity_distribution:
+    avg: null
+    delta: 4.0
+    max: null
+    min: null
+    name: uniform_wo_avg
     std: null
   generator_num_ratio: 0.4
   generator_spare: 1.1
   initial_active_ratio: 0.5
   initial_max_rebalance: 1000
   initial_rebalance: directed
+  renewable_capacity_distribution:
+    avg: null
+    delta: 4.0
+    max: null
+    min: null
+    name: uniform_wo_avg
+    std: null
+  renewable_mass_distribution:
+    avg: null
+    delta: null
+    max: 0.1
+    min: 0.1
+    name: uniform
+    std: null
   renewable_num_ratio: 0.2
   source_ratio: 4.0
+node:
+  consumer_unit_gamma: 1.0
+  consumer_unit_mass: 1.0
+  consumer_unit_power: -2
+  generator_unit_gamma: 1.0
+  generator_unit_mass: 1.0
+  generator_unit_power: 1
+  renewable_unit_gamma_mass_ratio: 1.0
+  renewable_unit_power: 1
 observation:
   active_ratio: true
   coupling: true
@@ -54,17 +77,6 @@ observation:
   perturbation: true
   phase: true
   power: true
-renewable:
-  capacity_distribution_name: uniform
-  capacity_distribution_param: 1.0
-  mass_distribution:
-    avg: null
-    max: 0.1
-    min: 0.1
-    name: uniform
-    std: null
-  unit_gamma_mass_ratio: 1.0
-  unit_power: 1
 rl:
   equilibrium_time: 1
   fail_threshold: 0.01
@@ -76,7 +88,7 @@ rl:
   reset_coupling: false
   reset_graph: false
   reset_node: true
-  reset_node_type: true
+  reset_node_type: false
   reward: weighted_area
   stable_threshold: 0.0001
   steady_time: 20
