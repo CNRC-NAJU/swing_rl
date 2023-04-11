@@ -7,7 +7,7 @@ from .type import NodeType
 
 
 class Generator(Node):
-    def __init__(self, max_units: int = 0) -> None:
+    def __init__(self, max_units: int) -> None:
         super().__init__(max_units)
 
         self.unit_power = NODE_CONFIG.generator_unit_power
@@ -32,14 +32,10 @@ class Generator(Node):
 
     @property
     def mass(self) -> float:
-        if self.active_units == 0:
-            return self.unit_mass
         return abs(self.active_units) * self.unit_mass
 
     @property
     def gamma(self) -> float:
-        if self.active_units == 0:
-            return self.unit_gamma
         return abs(self.active_units) * self.unit_gamma
 
     @property

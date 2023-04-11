@@ -6,17 +6,25 @@ from .node import Node
 from .type import NodeType
 
 
-class Consumer(Node):
+class ControllableConsumer(Node):
     def __init__(self, max_units: int) -> None:
         super().__init__(max_units)
 
-        self.unit_power = NODE_CONFIG.consumer_unit_power
-        self.unit_mass = NODE_CONFIG.consumer_unit_mass
-        self.unit_gamma = NODE_CONFIG.consumer_unit_gamma
+        self.unit_power = NODE_CONFIG.controllable_consumer_unit_power
+        self.unit_mass = NODE_CONFIG.controllable_consumer_unit_mass
+        self.unit_gamma = NODE_CONFIG.controllable_consumer_unit_gamma
+
+    @classmethod
+    def from_capacity(cls, capacity: int) -> ControllableConsumer:
+        assert (
+            capacity % NODE_CONFIG.controllable_consumer_unit_power == 0
+        ), f"Capacity not valid: {capacity}"
+
+        return cls(-capacity // NODE_CONFIG.controllable_consumer_unit_power)
 
     @property
     def type(self) -> NodeType:
-        return NodeType.CONSUMER
+        return NodeType.CONTROLLABLE_CONSUMER
 
     @property
     def power(self) -> int:

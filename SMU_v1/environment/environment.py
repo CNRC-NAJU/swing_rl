@@ -9,6 +9,7 @@ import numpy.typing as npt
 from config import OBSERVATION_CONFIG, RL_CONFIG, SWING_CONFIG
 
 from .grid import Grid
+from .node.type import NodeType
 from .reward import get_reward_ftn, reward_failed
 from .swing.solver import swing_solver
 from .trajectory import is_failed, is_stable, normalize_phase
@@ -131,8 +132,10 @@ class Environment(gym.Env):
         # Perturbate the node powers
         self.grid.perturbate(self.marked)
 
+        # Only leave action at controllable nodes
+        action *= self.grid.is_generator + self.grid.is_controllable_consumer
+
         # Rebalance power
-        action *= self.grid.is_generator  # Only leave generator nodes
         balanced = self.rebalance(action)
         if not balanced:
             return (
@@ -187,10 +190,7 @@ class Environment(gym.Env):
         # Mark next perturbation
         self.marked = self.grid.mark_perturbation(RL_CONFIG.num_pertubation)
 
-        # Observe state
-        observation = self.observe()
-
-        return observation, reward, terminated, truncated, {}
+        return self.observe(), reward, terminated, truncated, {}
 
     def reset(self) -> tuple[dict[str, Any], dict[str, Any]]:
         """Reset environments and returns to the initial observation
@@ -231,8 +231,8 @@ class Environment(gym.Env):
         observation_space: dict[str, spaces.Space] = {}
 
         if OBSERVATION_CONFIG.node_type:
-            # 3 types: generator/renewable/consumer
-            observation_space["node_type"] = spaces.Discrete(3)
+            # 4 types: generator/renewable/consumer/controllable consumer
+            observation_space["node_type"] = spaces.Discrete(len(NodeType))
         if OBSERVATION_CONFIG.phase:
             # Normalized angle, (-pi, pi]
             observation_space["phase"] = spaces.Box(-np.pi, np.pi, (num_nodes,))

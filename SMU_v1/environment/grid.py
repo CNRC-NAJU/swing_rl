@@ -10,7 +10,8 @@ from .distribution import distribute_capacity
 from .graph.create import create_graph
 from .graph.utils import (directed2undirected, get_edge_list,
                           get_weighted_adjacency_matrix, repeat_weight)
-from .node import Consumer, Generator, Node, NodeType, Renewable
+from .node import (Consumer, ControllableConsumer, Generator, Node, NodeType,
+                   Renewable)
 
 Rng = np.random.Generator | int | None
 DTYPE = SWING_CONFIG.dtype
@@ -56,9 +57,10 @@ class Grid:
 
         # Initialize node types
         self.node_types: list[NodeType]
-        self.is_consumer: npt.NDArray[np.bool_]
         self.is_generator: npt.NDArray[np.bool_]
         self.is_renewable: npt.NDArray[np.bool_]
+        self.is_consumer: npt.NDArray[np.bool_]
+        self.is_controllable_consumer: npt.NDArray[np.bool_]
         if node_types is None:
             node_types = self.create_node_types(self.num_nodes, self.rng)
         self.set_node_types(node_types)
@@ -72,9 +74,8 @@ class Grid:
         # Activate
         self.activate()
 
-    def info(self) -> None:
-        for i, node in enumerate(self.nodes):
-            print(f"Node {i} - {node}")
+    def __str__(self) -> str:
+        return "\n".join(f"Node {i} - {node}" for i, node in enumerate(self.nodes))
 
     # ---------------------------------- Graph -----------------------------------
     def set_graph(self, graph: nx.Graph) -> None:
@@ -156,14 +157,17 @@ class Grid:
         assert len(node_types) == self.num_nodes
 
         self.node_types = node_types
-        self.is_consumer = np.array(
-            [node_type is NodeType.CONSUMER for node_type in node_types]
-        )
         self.is_generator = np.array(
             [node_type is NodeType.GENERATOR for node_type in node_types]
         )
         self.is_renewable = np.array(
             [node_type is NodeType.RENEWABLE for node_type in node_types]
+        )
+        self.is_consumer = np.array(
+            [node_type is NodeType.CONSUMER for node_type in node_types]
+        )
+        self.is_controllable_consumer = np.array(
+            [node_type is NodeType.CONTROLLABLE_CONSUMER for node_type in node_types]
         )
 
     def reset_node_types(self) -> None:
@@ -186,15 +190,21 @@ class Grid:
             rng = np.random.default_rng(rng)
 
         # Number of each node types, following configuration
-        num_generators = int(num_nodes * GRID_CONFIG.generator_num_ratio)
-        num_renewables = int(num_nodes * GRID_CONFIG.renewable_num_ratio)
-        num_consumers = num_nodes - num_generators - num_renewables
+        num_generators = round(num_nodes * GRID_CONFIG.generator_num_ratio)
+        num_renewables = round(num_nodes * GRID_CONFIG.renewable_num_ratio)
+        num_controllable_consumers = round(
+            num_nodes * GRID_CONFIG.controllable_consumer_num_ratio
+        )
+        num_consumers = (
+            num_nodes - num_generators - num_renewables - num_controllable_consumers
+        )
 
         # list of node types
         node_types = (
             [NodeType.GENERATOR] * num_generators
             + [NodeType.RENEWABLE] * num_renewables
             + [NodeType.CONSUMER] * num_consumers
+            + [NodeType.CONTROLLABLE_CONSUMER] * num_controllable_consumers
         )
 
         # Shuffle the types
@@ -230,6 +240,9 @@ class Grid:
             node_type is NodeType.RENEWABLE for node_type in node_types
         )
         num_consumers = sum(node_type is NodeType.CONSUMER for node_type in node_types)
+        num_controllable_consumers = sum(
+            node_type is NodeType.CONTROLLABLE_CONSUMER for node_type in node_types
+        )
 
         # Create consumers
         max_units_distribution = GRID_CONFIG.consumer_max_units_distribution
@@ -254,13 +267,16 @@ class Grid:
             Consumer(max_units) for max_units in consumer_max_units
         ]
 
-        # Calculate total capacity of consumers/generators/renewables
+        # Calculate total capacity of consumers/generators/renewables/controllable consumers
         consumer_tot_capacity = abs(sum(consumer.capacity for consumer in consumers))
         generator_tot_capacity = math.ceil(
             consumer_tot_capacity * GRID_CONFIG.generator_spare
         )
         renewable_tot_capacity = math.ceil(
             generator_tot_capacity / GRID_CONFIG.source_ratio
+        )
+        controllable_consumer_tot_capacity = math.ceil(
+            renewable_tot_capacity * GRID_CONFIG.controllable_consumer_spare
         )
 
         # Create generators, with distributed capacities
@@ -305,6 +321,18 @@ class Grid:
             for capacity, mass in zip(renewable_capacities, renewable_masses)
         ]
 
+        # Create controllable consumers
+        controllable_consumer_capacities = distribute_capacity(
+            controllable_consumer_tot_capacity,
+            num_controllable_consumers,
+            GRID_CONFIG.controllable_consumer_capacity_distribution,
+            rng,
+        )
+        controllable_consumers: list[Node] = [
+            ControllableConsumer.from_capacity(capacity)
+            for capacity in controllable_consumer_capacities
+        ]
+
         # concatenate generators, renewables, consumers in order of their types
         nodes: list[Node] = []
         for node_type in node_types:
@@ -312,8 +340,10 @@ class Grid:
                 nodes.append(generators.pop())
             elif node_type is NodeType.RENEWABLE:
                 nodes.append(renewables.pop())
-            else:
+            elif node_type is NodeType.CONSUMER:
                 nodes.append(consumers.pop())
+            else:
+                nodes.append(controllable_consumers.pop())
         return nodes
 
     @staticmethod
@@ -409,21 +439,18 @@ class Grid:
         """
         # Zero out weights that is not useful for the power imbalance direction
         # i.e., if imbalance is positive, remove production weight
+        is_consumer = self.is_consumer + self.is_controllable_consumer
         if self.power_imbalance > 0:
             # Only leave consumer whose weight > 0, source whose weight < 0
-            weights[self.is_consumer] = np.clip(
-                weights[self.is_consumer], a_min=0.0, a_max=None
-            )
-            weights[~self.is_consumer] = np.clip(
-                weights[~self.is_consumer], a_min=None, a_max=0.0
+            weights[is_consumer] = np.clip(weights[is_consumer], a_min=0.0, a_max=None)
+            weights[~is_consumer] = np.clip(
+                weights[~is_consumer], a_min=None, a_max=0.0
             )
         else:
             # Only leave consumer whose weight < 0, source whose weight > 0
-            weights[self.is_consumer] = np.clip(
-                weights[self.is_consumer], a_min=None, a_max=0.0
-            )
-            weights[~self.is_consumer] = np.clip(
-                weights[~self.is_consumer], a_min=0.0, a_max=None
+            weights[is_consumer] = np.clip(weights[is_consumer], a_min=None, a_max=0.0)
+            weights[~is_consumer] = np.clip(
+                weights[~is_consumer], a_min=0.0, a_max=None
             )
         weights /= np.sum(np.abs(weights))  # Normalize weight
 
@@ -441,7 +468,7 @@ class Grid:
 
     # ------------------------------ Perturbation ---------------------------------
     def mark_perturbation(self, num: int) -> npt.NDArray[np.int64]:
-        """Mark direction of perturbation of each nodes
+        """Mark direction of perturbation of each consumers/renewables
         num: How many nodes to be perturbated
         Return: [N, ] whose value is (-1, 0, 1)
             -1 : node will be decreased
@@ -450,7 +477,10 @@ class Grid:
         """
         # Randomly select nodes to be perturbated: generator is not perturbated
         indices = self.rng.choice(
-            self.num_nodes, size=num, replace=False, p=(~self.is_generator)
+            self.num_nodes,
+            size=num,
+            replace=False,
+            p=(self.is_consumer + self.is_renewable),
         )
 
         # Set the direction of perturbation of selected nodes

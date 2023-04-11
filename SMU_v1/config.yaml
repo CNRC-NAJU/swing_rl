@@ -21,7 +21,16 @@ grid:
     min: 10.0
     name: uniform
     std: null
-  consumer_num_ratio: 0.4
+  consumer_num_ratio: 0.3
+  controllable_consumer_capacity_distribution:
+    avg: null
+    delta: 4.0
+    max: null
+    min: null
+    name: uniform_wo_avg
+    std: null
+  controllable_consumer_num_ratio: 0.1
+  controllable_consumer_spare: 1.1
   coupling_distribution:
     avg: null
     delta: null
@@ -60,7 +69,10 @@ grid:
 node:
   consumer_unit_gamma: 1.0
   consumer_unit_mass: 1.0
-  consumer_unit_power: -2
+  consumer_unit_power: -1
+  controllable_consumer_unit_gamma: 1.0
+  controllable_consumer_unit_mass: 1.0
+  controllable_consumer_unit_power: -1
   generator_unit_gamma: 1.0
   generator_unit_mass: 1.0
   generator_unit_power: 1

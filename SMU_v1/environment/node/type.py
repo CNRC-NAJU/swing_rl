@@ -5,3 +5,4 @@ class NodeType(Enum):
     GENERATOR = auto()
     RENEWABLE = auto()
     CONSUMER = auto()
+    CONTROLLABLE_CONSUMER = auto()

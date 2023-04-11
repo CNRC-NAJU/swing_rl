@@ -18,8 +18,14 @@ class NodeConfig:
     consumer_unit_mass: float = 1.0
     consumer_unit_gamma: float = 1.0
 
+    # -------- Controllable Consumer ---------
+    controllable_consumer_unit_power: int = -1
+    controllable_consumer_unit_mass: float = 1.0
+    controllable_consumer_unit_gamma: float = 1.0
+
     def from_dict(self, config: dict[str, Any]) -> None:
         for key, value in config.items():
             setattr(self, key, value)
+
 
 NODE_CONFIG = NodeConfig()
