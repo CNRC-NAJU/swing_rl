@@ -397,9 +397,12 @@ class Grid:
         # Resolve power imbalance
         balanced = False
         while not balanced:
-            weights = self.rng.choice(
-                np.array([-1.0, 1.0], dtype=np.float32), size=self.num_nodes
-            )
+            if GRID_CONFIG.initial_rebalance == "directed":
+                weights = np.ones(self.num_nodes, dtype=np.float32)
+            else:
+                weights = self.rng.choice(
+                    np.array([-1.0, 1.0], dtype=np.float32), size=self.num_nodes
+                )
             balanced = rebalance(weights, GRID_CONFIG.initial_max_rebalance)
 
     def rebalance_undirected(
@@ -407,23 +410,34 @@ class Grid:
     ) -> bool:
         """
         Rebalance total power in grid, by perturbation
+
+        Args
+        weights: [N, ], all values at [-1.0, 1.0]
         abs(weights): probability that each node will be selected
         sign(weights): If positive, increase active units. Otherwise, decrease
+        max_trial: Maximum number of rebalancing trial
 
-        Return true if successfully rebalanced
+        Return
+        When rebalancing is successful before max_trial attempts, return True.
         """
-        weights /= np.sum(np.abs(weights))  # Normalize weight
+        # No need to do rebalancing
+        if self.power_imbalance == 0:
+            return True
+
+        # Normalize weight
+        weights /= np.sum(np.abs(weights))
 
         # Rebalancing
         for _ in range(max_trial):
-            if self.power_imbalance == 0:
-                return True
-
             random_idx = self.rng.choice(self.num_nodes, p=np.abs(weights))
             node, weight = self.nodes[random_idx], weights[random_idx]
 
             # Increase active units if weight is positive, decrease otherwise
             node.increase() if weight > 0 else node.decrease()
+
+            # Check current imbalance state
+            if self.power_imbalance == 0:
+                return True
 
         return False
 
@@ -432,37 +446,42 @@ class Grid:
     ) -> bool:
         """
         Rebalance total power in grid, by increaing/decresing to reduce imbalance
-        abs(weights): probability that each node will be selected
-        sign(weights): If positive, increase active units. Otherwise, decrease
+        If power imbalance is positive, increase consumption or decrease production
 
-        Return true if successfully rebalanced
+        Args
+        weights: [N, ], all values at [0.0, 1.0]
+        max_trial: Maximum number of rebalancing trial
+
+        Return
+        When rebalancing is successful before max_trial attempts, return True.
         """
-        # Zero out weights that is not useful for the power imbalance direction
-        # i.e., if imbalance is positive, remove production weight
+        assert np.all(weights >= 0)
+        # No need to do rebalancing
+        power_imbalance = self.power_imbalance
+        if power_imbalance == 0:
+            return True
+
         is_consumer = self.is_consumer + self.is_controllable_consumer
-        if self.power_imbalance > 0:
-            # Only leave consumer whose weight > 0, source whose weight < 0
-            weights[is_consumer] = np.clip(weights[is_consumer], a_min=0.0, a_max=None)
-            weights[~is_consumer] = np.clip(
-                weights[~is_consumer], a_min=None, a_max=0.0
-            )
+        if power_imbalance > 0:
+            # Direction to increase consumption/decrease production
+            weights[~is_consumer] *= -1.0
         else:
-            # Only leave consumer whose weight < 0, source whose weight > 0
-            weights[is_consumer] = np.clip(weights[is_consumer], a_min=None, a_max=0.0)
-            weights[~is_consumer] = np.clip(
-                weights[~is_consumer], a_min=0.0, a_max=None
-            )
-        weights /= np.sum(np.abs(weights))  # Normalize weight
+            # Direction to decrease consumption/increase production
+            weights[is_consumer] *= -1.0
+        # Normalize weight
+        weights /= np.sum(np.abs(weights))
 
-        for _ in range(max_trial):
-            if self.power_imbalance == 0:
-                return True
 
+        for _ in range(max_trial + 1):
             random_idx = self.rng.choice(self.num_nodes, p=np.abs(weights))
             node, weight = self.nodes[random_idx], weights[random_idx]
 
             # Increase active units if weight is positive, decrease otherwise
             node.increase() if weight > 0 else node.decrease()
+
+            # Check current imbalance state
+            if self.power_imbalance == 0:
+                return True
 
         return False
 
@@ -476,11 +495,12 @@ class Grid:
             1 : node will be increased
         """
         # Randomly select nodes to be perturbated: generator is not perturbated
+        candidates = (self.is_consumer + self.is_renewable).astype(np.float32)
         indices = self.rng.choice(
             self.num_nodes,
             size=num,
             replace=False,
-            p=(self.is_consumer + self.is_renewable),
+            p=candidates / candidates.sum(),
         )
 
         # Set the direction of perturbation of selected nodes

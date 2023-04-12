@@ -1,3 +1,4 @@
+import warnings
 from dataclasses import dataclass
 from typing import Any
 
@@ -34,6 +35,8 @@ class RLConfig:
 
     def __post_init__(self) -> None:
         assert self.rebalance in ["directed", "undirected"]
+        if self.rebalance == "undirected":
+            warnings.warn("Undirected rebalancing strategy may endup Error")
 
         if self.reset_graph:
             assert (

@@ -110,7 +110,6 @@ class Environment(gym.Env):
         while time < RL_CONFIG.steady_time:
             time += SWING_CONFIG._dt
             phase, dphase = solver(phase=phase, dphase=dphase)
-            print(time, np.abs(dphase).max())
             if is_stable(dphase):
                 return phase, dphase
 
@@ -132,6 +131,9 @@ class Environment(gym.Env):
         # Perturbate the node powers
         self.grid.perturbate(self.marked)
 
+        # Shift action if rebalace strategy is directed
+        if RL_CONFIG.rebalance == "directed":
+            action = 0.5 * (action + 1.0)
         # Only leave action at controllable nodes
         action *= self.grid.is_generator + self.grid.is_controllable_consumer
 
@@ -140,7 +142,7 @@ class Environment(gym.Env):
         if not balanced:
             return (
                 self.observe(),
-                reward_failed(self.grid.num_nodes, 0),
+                reward_failed(self.grid.num_nodes, SWING_CONFIG._dt),
                 False,
                 True,
                 {},
@@ -232,7 +234,9 @@ class Environment(gym.Env):
 
         if OBSERVATION_CONFIG.node_type:
             # 4 types: generator/renewable/consumer/controllable consumer
-            observation_space["node_type"] = spaces.Discrete(len(NodeType))
+            observation_space["node_type"] = spaces.Box(
+                0, len(NodeType), (num_nodes,), dtype=np.int64
+            )
         if OBSERVATION_CONFIG.phase:
             # Normalized angle, (-pi, pi]
             observation_space["phase"] = spaces.Box(-np.pi, np.pi, (num_nodes,))
@@ -245,13 +249,13 @@ class Environment(gym.Env):
             observation_space["gamma"] = spaces.Box(0, np.inf, (num_nodes,))
         if OBSERVATION_CONFIG.power:
             observation_space["power"] = spaces.Box(
-                -np.inf, np.inf, (num_nodes,), dtype=np.int64
+                -np.inf, np.inf, (num_nodes,), dtype=np.float32
             )
         if OBSERVATION_CONFIG.active_ratio:
             observation_space["active_ratio"] = spaces.Box(-1.0, 1.0, (num_nodes,))
         if OBSERVATION_CONFIG.perturbation:
             observation_space["perturbation"] = spaces.Box(
-                -1.0, 1.0, (num_nodes,), dtype=np.int64
+                -1.0, 1.0, (num_nodes,), dtype=np.float32
             )
         if OBSERVATION_CONFIG.edge_list:
             observation_space["edge_list"] = spaces.Box(
@@ -284,7 +288,7 @@ class Environment(gym.Env):
         if OBSERVATION_CONFIG.active_ratio:
             observation["active_ratio"] = self.grid.active_ratios
         if OBSERVATION_CONFIG.perturbation:
-            observation["perturbation"] = self.marked
+            observation["perturbation"] = self.marked.astype(np.float32, copy=False)
         if OBSERVATION_CONFIG.edge_list:
             observation["edge_list"] = self.grid.edge_list
         if OBSERVATION_CONFIG.coupling:
