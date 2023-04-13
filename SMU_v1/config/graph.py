@@ -24,6 +24,7 @@ class GraphConfig:
 
     def __post__init__(self) -> None:
         assert self.topology in ["shk", "ba", "er", "rr"]
+        assert self.num_nodes_distribution.name in ["uniform", "normal"]
 
     def from_dict(self, config: dict[str, Any]) -> None:
         self.num_nodes_distribution = DistributionConfig(

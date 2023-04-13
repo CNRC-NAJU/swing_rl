@@ -2,12 +2,15 @@ from dataclasses import dataclass
 from typing import Any
 
 
+## When finding steady state, decrease mass, increase gamma
 @dataclass
 class NodeConfig:
     # ---------------- Generator ----------------
     generator_unit_power: int = 1
     generator_unit_mass: float = 1.0
     generator_unit_gamma: float = 1.0
+    # generator_temporary_unit_mass: float = 0.1
+    # generator_temporary_unit_gamma: float = 10.0
 
     # ---------------- Renewable ----------------
     renewable_unit_power: int = 1

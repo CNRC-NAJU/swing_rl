@@ -118,7 +118,7 @@ class Grid:
         self.weighted_adjacency_matrix = get_weighted_adjacency_matrix(
             self.graph, couplings
         )
-        self.coupling = repeat_weight(couplings)
+        self.couplings = repeat_weight(couplings)
 
     def reset_coupling(self) -> None:
         """Reset coupling constants of existing grid"""

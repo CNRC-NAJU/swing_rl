@@ -48,7 +48,7 @@ class Environment(gym.Env):
 
         # States that will change over each steps
         self.grid = copy.deepcopy(self.initial_grid)
-        self.steady_phase = self.initial_steady_dphase.copy()
+        self.steady_phase = self.initial_steady_phase.copy()
         self.steady_dphase = self.initial_steady_dphase.copy()
         self.marked = self.grid.mark_perturbation(RL_CONFIG.num_pertubation)
         self.num_steps = 0
@@ -100,7 +100,7 @@ class Environment(gym.Env):
         if not isinstance(rng, np.random.Generator):
             rng = np.random.default_rng(rng)
 
-        # Initial random state
+        # Initial condition
         phase = np.zeros(grid.num_nodes, dtype=DTYPE)
         dphase = np.zeros_like(phase)
 
@@ -215,7 +215,7 @@ class Environment(gym.Env):
 
         # Update state for new episode
         self.grid = copy.deepcopy(self.initial_grid)
-        self.steady_phase = self.initial_steady_dphase.copy()
+        self.steady_phase = self.initial_steady_phase.copy()
         self.steady_dphase = self.initial_steady_dphase.copy()
         self.num_steps = 0
 
@@ -237,32 +237,52 @@ class Environment(gym.Env):
             observation_space["node_type"] = spaces.Box(
                 0, len(NodeType), (num_nodes,), dtype=np.int64
             )
+        else:
+            observation_space["node_type"] = spaces.Box(0, 0, (0,), dtype=np.int64)
         if OBSERVATION_CONFIG.phase:
             # Normalized angle, (-pi, pi]
             observation_space["phase"] = spaces.Box(-np.pi, np.pi, (num_nodes,))
+        else:
+            observation_space["phase"] = spaces.Box(0, 0, (0,))
         if OBSERVATION_CONFIG.dphase:
             # angular velocity: unlimited
             observation_space["dphase"] = spaces.Box(-np.inf, np.inf, (num_nodes,))
+        else:
+            observation_space["dphase"] = spaces.Box(0, 0, (0,))
         if OBSERVATION_CONFIG.mass:
             observation_space["mass"] = spaces.Box(0, np.inf, (num_nodes,))
+        else:
+            observation_space["mass"] = spaces.Box(0, 0, (0,))
         if OBSERVATION_CONFIG.gamma:
             observation_space["gamma"] = spaces.Box(0, np.inf, (num_nodes,))
+        else:
+            observation_space["gamma"] = spaces.Box(0, 0, (0,))
         if OBSERVATION_CONFIG.power:
             observation_space["power"] = spaces.Box(
                 -np.inf, np.inf, (num_nodes,), dtype=np.float32
             )
+        else:
+            observation_space["power"] = spaces.Box(0, 0, (0,))
         if OBSERVATION_CONFIG.active_ratio:
             observation_space["active_ratio"] = spaces.Box(-1.0, 1.0, (num_nodes,))
+        else:
+            observation_space["active_ratio"] = spaces.Box(0, 0, (0,))
         if OBSERVATION_CONFIG.perturbation:
             observation_space["perturbation"] = spaces.Box(
                 -1.0, 1.0, (num_nodes,), dtype=np.float32
             )
+        else:
+            observation_space["perturbation"] = spaces.Box(0, 0, (0,))
         if OBSERVATION_CONFIG.edge_list:
             observation_space["edge_list"] = spaces.Box(
                 0, num_nodes - 1, (2, 2 * num_edges), dtype=np.int64
             )
+        else:
+            observation_space["edge_list"] = spaces.Box(0, 0, (2, 0), dtype=np.int64)
         if OBSERVATION_CONFIG.coupling:
             observation_space["coupling"] = spaces.Box(0.0, np.inf, (2 * num_edges,))
+        else:
+            observation_space["coupling"] = spaces.Box(0, 0, (0, ))
 
         return spaces.Dict(observation_space)
 
@@ -292,6 +312,6 @@ class Environment(gym.Env):
         if OBSERVATION_CONFIG.edge_list:
             observation["edge_list"] = self.grid.edge_list
         if OBSERVATION_CONFIG.coupling:
-            observation["coupling"] = self.grid.coupling
+            observation["coupling"] = self.grid.couplings
 
         return observation
