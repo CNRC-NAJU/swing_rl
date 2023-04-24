@@ -1,3 +1,4 @@
+from .agent import AGENT_CONFIG, AgentConfig
 from .config import CONFIG, Config
 from .distribution import DistributionConfig
 from .graph import GRAPH_CONFIG, GraphConfig

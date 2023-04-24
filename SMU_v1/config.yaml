@@ -1,3 +1,17 @@
+agent:
+  activation: elu
+  active_ratio_emb_dim: 8
+  bn_momentum: 1.0
+  coupling_hidden_dim: 8
+  dphase_emb_dim: 8
+  dropout: 0.0
+  gamma_emb_dim: 8
+  mass_emb_dim: 8
+  node_hidden_dim: 64
+  node_type_emb_dim: 8
+  perturbation_emb_dim: 8
+  phase_emb_dim: 8
+  power_emb_dim: 8
 graph:
   mean_degree: 4.0
   num_nodes_distribution:
