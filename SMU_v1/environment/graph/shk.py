@@ -56,7 +56,7 @@ class SHK:
             self._grow(new_node)
 
         # save position information to graph
-        nx.set_node_attributes(
+        nx.function.set_node_attributes(
             G=self.graph,
             values={node: self.pos[node] for node in range(self.final_num_nodes)},
             name="pos",
@@ -64,9 +64,9 @@ class SHK:
 
     def plot(self, ax: plt.Axes) -> None:
         ax.axis("off")
-        nx.draw_networkx(
+        nx.drawing.nx_pylab.draw_networkx(
             self.graph,
-            pos=nx.get_node_attributes(self.graph, "pos"),
+            pos=nx.function.get_node_attributes(self.graph, "pos"),
             ax=ax,
             node_size=50,
             node_color="k",
@@ -84,7 +84,7 @@ class SHK:
             graph.add_edge(i, j, weight=dist)
 
         # Generate minimum spanning tree using euclidean distance
-        return nx.minimum_spanning_tree(graph)
+        return nx.algorithms.tree.minimum_spanning_tree(graph)
 
     def _add_initial_edge(self) -> None:
         """Add Initial edges"""

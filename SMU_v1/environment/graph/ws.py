@@ -9,4 +9,6 @@ def get_ws(
     rng: np.random.Generator | int | None = None,
 ) -> nx.Graph:
     """Get watts-strogatz small world graph"""
-    return nx.connected_watts_strogatz_graph(num_nodes, int(mean_degree), p, seed=rng)
+    return nx.generators.random_graphs.connected_watts_strogatz_graph(
+        num_nodes, int(mean_degree), p, seed=rng
+    )

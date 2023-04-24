@@ -10,4 +10,6 @@ def get_ba(
     mean_degree: mean degree of resulting graph. should be even
     """
     new_edges = int(mean_degree / 2)
-    return nx.barabasi_albert_graph(num_nodes, new_edges, seed=rng)
+    return nx.generators.random_graphs.barabasi_albert_graph(
+        num_nodes, new_edges, seed=rng
+    )

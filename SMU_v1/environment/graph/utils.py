@@ -1,7 +1,8 @@
 from collections import Counter
-from typing import TypeVar
+from typing import TypeVar, cast
 
 import networkx as nx
+from networkx.classes.reportviews import DegreeView
 import numpy as np
 import numpy.typing as npt
 
@@ -24,15 +25,15 @@ def repeat_weight(weights: npt.NDArray) -> npt.NDArray:
 def filter_gcc(graph: nx.Graph) -> nx.Graph:
     gcc_nodes = sorted(nx.connected_components(graph), key=len, reverse=True)[0]
     gcc = graph.subgraph(gcc_nodes)
-    return nx.convert_node_labels_to_integers(gcc)
+    return nx.relabel.convert_node_labels_to_integers(gcc)
 
 
 def get_mean_degree(graph: nx.Graph) -> float:
-    return sum(d for _, d in graph.degree) / graph.number_of_nodes()
+    return sum(d for _, d in cast(DegreeView,graph.degree)) / graph.number_of_nodes()
 
 
 def get_degree_distribution(graph: nx.Graph) -> Counter[int]:
-    degrees = [d for _, d in graph.degree]
+    degrees = [d for _, d in  cast(DegreeView, graph.degree)]
     return Counter(degrees)
 
 

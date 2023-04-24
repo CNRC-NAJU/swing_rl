@@ -15,7 +15,7 @@ def get_er(
     mean_degree: mean degree of resulting graph
     """
     p = mean_degree / (num_nodes - 1)
-    graph = nx.fast_gnp_random_graph(num_nodes, p, seed=rng)
+    graph = nx.generators.random_graphs.fast_gnp_random_graph(num_nodes, p, seed=rng)
     if gcc:
         graph = filter_gcc(graph)
     return graph

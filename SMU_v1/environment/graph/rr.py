@@ -18,7 +18,7 @@ def get_rr(
     if (num_nodes * mean_degree) % 2 == 1:
         num_nodes += 1
 
-    graph = nx.random_regular_graph(mean_degree, num_nodes, seed=rng)
+    graph = nx.generators.random_graphs.random_regular_graph(mean_degree, num_nodes, seed=rng)
     if gcc:
         graph = filter_gcc(graph)
     return graph
