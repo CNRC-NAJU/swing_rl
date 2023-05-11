@@ -44,7 +44,7 @@ grid:
     name: uniform_wo_avg
     std: null
   controllable_consumer_num_ratio: 0.1
-  controllable_consumer_spare: 1.1
+  controllable_consumer_spare: 1.0
   coupling_distribution:
     avg: null
     delta: null
@@ -60,7 +60,7 @@ grid:
     name: uniform_wo_avg
     std: null
   generator_num_ratio: 0.4
-  generator_spare: 1.1
+  generator_spare: 1.0
   initial_active_ratio: 0.5
   initial_max_rebalance: 1000
   initial_rebalance: directed

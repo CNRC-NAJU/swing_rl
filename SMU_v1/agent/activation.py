@@ -2,18 +2,19 @@ import torch.nn as nn
 
 
 def get_activation(name: str) -> nn.Module:
-    if name == "relu":
-        return nn.ReLU()
-    elif name == "gelu":
-        return nn.GELU()
-    elif name == "selu":
-        return nn.SELU()
-    elif name == "elu":
-        return nn.ELU()
-    elif name == "sigmoid":
-        return nn.Sigmoid()
-    elif name == "tanh":
-        return nn.Tanh()
+    match name:
+        case "relu":
+            return nn.ReLU()
+        case "gelu":
+            return nn.GELU()
+        case "selu":
+            return nn.SELU()
+        case "elu":
+            return nn.ELU()
+        case "sigmoid":
+            return nn.Sigmoid()
+        case "tanh":
+            return nn.Tanh()
 
     raise ValueError(f"No such activation: {name}")
 

@@ -245,26 +245,26 @@ class Grid:
         )
 
         # Create consumers
-        max_units_distribution = GRID_CONFIG.consumer_max_units_distribution
-        if max_units_distribution.name == "uniform":
-            consumer_max_units = rng.integers(
-                low=int(cast(float, max_units_distribution.min)),
-                high=int(cast(float, max_units_distribution.max)),
+        capacity_distribution = GRID_CONFIG.consumer_capacity_distribution
+        if capacity_distribution.name == "uniform":
+            consumer_capacities = rng.integers(
+                low=int(cast(float, capacity_distribution.min)),
+                high=int(cast(float, capacity_distribution.max)),
                 endpoint=True,
                 size=num_consumers,
             )
-        elif max_units_distribution.name == "normal":
-            consumer_max_units = rng.normal(
-                loc=cast(float, max_units_distribution.avg),
-                scale=cast(float, max_units_distribution.std),
+        elif capacity_distribution.name == "normal":
+            consumer_capacities = rng.normal(
+                loc=cast(float, capacity_distribution.avg),
+                scale=cast(float, capacity_distribution.std),
                 size=num_consumers,
             )
             # Round + Clipping: max_units > 1
-            consumer_max_units = np.clip(np.round(consumer_max_units), 1, None)
+            consumer_capacities = np.clip(np.round(consumer_capacities), 1, None)
         else:
-            raise ValueError(f"No such distribution {max_units_distribution.name}")
+            raise ValueError(f"No such distribution {capacity_distribution.name}")
         consumers: list[Node] = [
-            Consumer(max_units) for max_units in consumer_max_units
+            Consumer.from_capacity(capacity) for capacity in consumer_capacities
         ]
 
         # Calculate total capacity of consumers/generators/renewables/controllable consumers
@@ -470,7 +470,6 @@ class Grid:
             weights[is_consumer] *= -1.0
         # Normalize weight
         weights /= np.sum(np.abs(weights))
-
 
         for _ in range(max_trial + 1):
             random_idx = self.rng.choice(self.num_nodes, p=np.abs(weights))

@@ -16,11 +16,11 @@ class ControllableConsumer(Node):
 
     @classmethod
     def from_capacity(cls, capacity: int) -> ControllableConsumer:
+        assert capacity >= 0, "Capacity should be positive"
         assert (
             capacity % NODE_CONFIG.controllable_consumer_unit_power == 0
         ), f"Capacity not valid: {capacity}"
-
-        return cls(-capacity // NODE_CONFIG.controllable_consumer_unit_power)
+        return cls(capacity // abs(NODE_CONFIG.controllable_consumer_unit_power))
 
     @property
     def type(self) -> NodeType:

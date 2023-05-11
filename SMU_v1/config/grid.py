@@ -9,7 +9,7 @@ from .distribution import DistributionConfig
 @dataclass
 class GridConfig:
     # Distribution of couplings of each nodes
-    coupling_distribution: DistributionConfig = DistributionConfig(
+    coupling_distribution = DistributionConfig(
         name="uniform",
         min=10.0,
         max=10.0,
@@ -22,20 +22,18 @@ class GridConfig:
     controllable_consumer_num_ratio: float = 0.1
 
     # Distribution of nodes
-    generator_capacity_distribution: DistributionConfig = DistributionConfig(
+    generator_capacity_distribution = DistributionConfig(
         name="uniform_wo_avg", delta=4.0
     )
-    renewable_capacity_distribution: DistributionConfig = DistributionConfig(
+    renewable_capacity_distribution = DistributionConfig(
         name="uniform_wo_avg", delta=4.0
     )
-    renewable_mass_distribution: DistributionConfig = DistributionConfig(
-        name="uniform", min=0.1, max=0.1
-    )
-    consumer_max_units_distribution: DistributionConfig = DistributionConfig(
+    renewable_mass_distribution = DistributionConfig(name="uniform", min=0.1, max=0.1)
+    consumer_capacity_distribution = DistributionConfig(
         name="uniform", min=10.0, max=10.0
     )
-    controllable_consumer_capacity_distribution: DistributionConfig = (
-        DistributionConfig(name="uniform_wo_avg", delta=4.0)
+    controllable_consumer_capacity_distribution = DistributionConfig(
+        name="uniform_wo_avg", delta=4.0
     )
 
     # Power capacity ratio

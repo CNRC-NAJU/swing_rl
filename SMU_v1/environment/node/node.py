@@ -7,6 +7,7 @@ from .type import NodeType
 
 class Node(ABC):
     def __init__(self, max_units: int) -> None:
+        assert max_units >= 2
         self.max_units = max_units
         self.active_units: int = 1  # [1, max_units]
 

@@ -3,12 +3,12 @@ from dataclasses import dataclass
 
 @dataclass
 class DistributionConfig:
-    name: str = "uniform"
-    min: float | None = None
-    max: float | None = None
-    delta: float | None = None
-    avg: float | None = None
-    std: float | None = None
+    name: str = "uniform"  # Name of the distribution
+    min: float | None = None  # uniform: minimum
+    max: float | None = None  # uniform: maximum
+    delta: float | None = None  # uniform_wo_avg: min=avg-delta, max=avg+delta
+    avg: float | None = None  # normal: average
+    std: float | None = None  # normal, normal_wo_avg: standard deviation
 
     def __post_init__(self) -> None:
         if self.name == "uniform":

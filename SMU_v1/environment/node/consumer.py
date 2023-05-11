@@ -14,6 +14,14 @@ class Consumer(Node):
         self.unit_mass = NODE_CONFIG.consumer_unit_mass
         self.unit_gamma = NODE_CONFIG.consumer_unit_gamma
 
+    @classmethod
+    def from_capacity(cls, capacity: int) -> Consumer:
+        assert capacity >= 0, "Capacity should be positive"
+        assert (
+            capacity % NODE_CONFIG.consumer_unit_power == 0
+        ), f"Capacity not valid: {capacity}"
+        return cls(capacity // abs(NODE_CONFIG.consumer_unit_power))
+
     @property
     def type(self) -> NodeType:
         return NodeType.CONSUMER

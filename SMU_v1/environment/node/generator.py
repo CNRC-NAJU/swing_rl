@@ -16,10 +16,10 @@ class Generator(Node):
 
     @classmethod
     def from_capacity(cls, capacity: int) -> Generator:
+        assert capacity >= 0, "Capacity should be positive"
         assert (
             capacity % NODE_CONFIG.generator_unit_power == 0
         ), f"Capacity not valid: {capacity}"
-
         return cls(capacity // NODE_CONFIG.generator_unit_power)
 
     @property
@@ -32,11 +32,11 @@ class Generator(Node):
 
     @property
     def mass(self) -> float:
-        return abs(self.active_units) * self.unit_mass
+        return self.active_units * self.unit_mass
 
     @property
     def gamma(self) -> float:
-        return abs(self.active_units) * self.unit_gamma
+        return self.active_units * self.unit_gamma
 
     @property
     def capacity(self) -> int:

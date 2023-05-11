@@ -6,13 +6,12 @@ from .distribution import DistributionConfig
 
 @dataclass
 class GraphConfig:
-    topology: str = "shk"
+    topology: str = "shk"   # schultz-heitzh-kurths
 
     # Distribution of network size
-    num_nodes_distribution: DistributionConfig = DistributionConfig(
+    num_nodes_distribution = DistributionConfig(
         name="uniform", min=10.0, max=10.0
     )
-
     mean_degree: float = 4.0
 
     # shk parameters
