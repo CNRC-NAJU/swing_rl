@@ -1,6 +1,6 @@
 import warnings
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 
 @dataclass
@@ -17,7 +17,7 @@ class RLConfig:
     fail_threshold: float = 1e-2
 
     # Rebalancing policy
-    rebalance: str = "directed"
+    rebalance: Literal["directed", "undirected"] = "directed"
     max_rebalance: int = 1000
 
     # Reset range
@@ -27,7 +27,7 @@ class RLConfig:
     reset_node: bool = True
 
     # Reward
-    reward: str = "weighted_area"
+    reward: Literal["area", "slope", "weighted_area"] = "weighted_area"
     failed_scale: float = 1.0
 
     # Episode

@@ -16,11 +16,8 @@ class Renewable(Node):
 
     @classmethod
     def from_capacity(cls, capacity: int, mass: float) -> Renewable:
-        assert capacity >= 0, "Capacity should be positive"
-        assert (
-            capacity % NODE_CONFIG.renewable_unit_power == 0
-        ), f"Capacity not valid: {capacity}"
-        return cls(capacity // NODE_CONFIG.renewable_unit_power, mass)
+        assert capacity >= 0, "Capacity should be always positive"
+        return cls(capacity, mass)
 
     @property
     def type(self) -> NodeType:

@@ -43,9 +43,7 @@ class SHK:
             self.rng = np.random.default_rng(rng)
 
         # Randomly choose position of all nodes
-        self.pos: npt.NDArray[np.float32] = self.rng.random(
-            size=(self.final_num_nodes, 2), dtype=np.float32
-        )
+        self.pos = self.rng.random(size=(self.final_num_nodes, 2))
 
         # Create initial network
         self.graph = self._MST()  # minimum spanning tree from euclidean distance
@@ -223,8 +221,8 @@ class SHK:
     def get_fr(
         r: float,
         hop_dist: npt.NDArray[np.int64],
-        euclidean_dist: npt.NDArray[np.float32],
-    ) -> npt.NDArray[np.float32]:
+        euclidean_dist: npt.NDArray[np.float64],
+    ) -> npt.NDArray[np.float64]:
         ...
 
     @staticmethod
@@ -234,8 +232,8 @@ class SHK:
 
     @staticmethod
     def get_euclidean_dist(
-        pos1: npt.NDArray[np.float32], pos2: npt.NDArray[np.float32]
-    ) -> npt.NDArray[np.float32]:
+        pos1: npt.NDArray[np.float64], pos2: npt.NDArray[np.float64]
+    ) -> npt.NDArray[np.float64]:
         """
         Calculate euclidean distance between two positions
         Last dimension of pos1,pos2 should be x,y(,z) dimension

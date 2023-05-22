@@ -1,17 +1,15 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from .distribution import DistributionConfig
 
 
 @dataclass
 class GraphConfig:
-    topology: str = "shk"   # schultz-heitzh-kurths
+    topology: Literal["shk", "ba", "er", "rr"] = "shk"  # schultz-heitzh-kurths
 
     # Distribution of network size
-    num_nodes_distribution = DistributionConfig(
-        name="uniform", min=10.0, max=10.0
-    )
+    num_nodes_distribution = DistributionConfig(name="uniform", min=10.0, max=10.0)
     mean_degree: float = 4.0
 
     # shk parameters

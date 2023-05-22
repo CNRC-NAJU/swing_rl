@@ -1,9 +1,12 @@
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass
 class DistributionConfig:
-    name: str = "uniform"  # Name of the distribution
+    name: Literal["uniform", "normal", "uniform_wo_avg", "normal_wo_avg"] = (
+        "uniform"  # Name of the distributions
+    )
     min: float | None = None  # uniform: minimum
     max: float | None = None  # uniform: maximum
     delta: float | None = None  # uniform_wo_avg: min=avg-delta, max=avg+delta

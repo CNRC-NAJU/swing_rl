@@ -135,7 +135,7 @@ class Environment(gym.Env):
         if RL_CONFIG.rebalance == "directed":
             action = 0.5 * (action + 1.0)
         # Only leave action at controllable nodes
-        action *= self.grid.is_generator + self.grid.is_controllable_consumer
+        action *= self.grid.is_generator + self.grid.is_sink
 
         # Rebalance power
         balanced = self.rebalance(action)

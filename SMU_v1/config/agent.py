@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 
 @dataclass
@@ -19,7 +19,7 @@ class AgentConfig:
     node_hidden_dim: int = 64
 
     # Activation
-    activation: str = "elu"
+    activation: Literal["relu", "gelu", "selu", "elu", "sigmoid", "tanh"] = "elu"
 
     # Prevent overfitting
     bn_momentum: float = 1.0

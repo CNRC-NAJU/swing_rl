@@ -19,7 +19,7 @@ def uniform_integers_with_sum(
 
     # Distribution setting
     avg = round(tot / num)
-    min_range, max_range = max(1, avg - delta), avg + delta
+    min_range, max_range = max(2, avg - delta), avg + delta
     if tot < num * min_range or tot > num * max_range:
         raise ValueError("No solution exists with given parameters.")
 
@@ -68,6 +68,7 @@ def normal_integers_with_sum(
         integers[idx] = max(1, integers[idx] + np.sign(difference))
         difference = tot - sum(integers)
 
+    rng.shuffle(integers)
     return integers
 
 

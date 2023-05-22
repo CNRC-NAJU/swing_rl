@@ -15,6 +15,14 @@ class Node(ABC):
         self.unit_mass: float = 0.0
         self.unit_gamma: float = 0.0
 
+    def minimize(self) -> None:
+        """Make only one unit be active"""
+        self.active_units = 1
+
+    def maximize(self) -> None:
+        """Make every unit be active"""
+        self.active_units = self.max_units
+
     def increase(self) -> bool:
         """Increase currently active unit.
         If the increment was failed
@@ -60,7 +68,10 @@ class Node(ABC):
             return -1
 
     def __str__(self) -> str:
-        return f"Type: {self.type.name}, max: {self.max_units}, active: {self.active_units}"
+        return (
+            f"Type: {self.type.name}, max: {self.max_units}, active:"
+            f" {self.active_units}"
+        )
 
     @property
     def full_active(self) -> bool:

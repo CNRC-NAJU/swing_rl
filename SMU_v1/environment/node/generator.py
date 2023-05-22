@@ -10,17 +10,14 @@ class Generator(Node):
     def __init__(self, max_units: int) -> None:
         super().__init__(max_units)
 
-        self.unit_power = NODE_CONFIG.generator_unit_power
+        self.unit_power = NODE_CONFIG.generator_unit_power  # Always 1
         self.unit_mass = NODE_CONFIG.generator_unit_mass
         self.unit_gamma = NODE_CONFIG.generator_unit_gamma
 
     @classmethod
     def from_capacity(cls, capacity: int) -> Generator:
-        assert capacity >= 0, "Capacity should be positive"
-        assert (
-            capacity % NODE_CONFIG.generator_unit_power == 0
-        ), f"Capacity not valid: {capacity}"
-        return cls(capacity // NODE_CONFIG.generator_unit_power)
+        assert capacity >= 0, "Capacity should be always positive"
+        return cls(capacity)
 
     @property
     def type(self) -> NodeType:

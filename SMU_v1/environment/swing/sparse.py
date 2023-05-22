@@ -11,20 +11,34 @@ Use sparse matrix representation
 """
 
 import functools
-from typing import Callable, TypeVar
+from typing import Callable, overload
 
 import numpy as np
 import numpy.typing as npt
 from scipy.sparse import coo_matrix
 
-T = TypeVar("T", np.float16, np.float32, np.float64, np.float128)
+arr32 = npt.NDArray[np.float32]
+arr64 = npt.NDArray[np.float64]
+arr = np.ndarray
+
+
+@overload
+def get_acceleration(
+    weighted_adjacency_matrix: coo_matrix, params: arr32, phase: arr32, dphase: arr32
+) -> arr32:
+    ...
+
+
+@overload
+def get_acceleration(
+    weighted_adjacency_matrix: coo_matrix, params: arr64, phase: arr64, dphase: arr64
+) -> arr64:
+    ...
+
 
 def get_acceleration(
-    weighted_adjacency_matrix: coo_matrix,
-    params: npt.NDArray[T],
-    phase: npt.NDArray[T],
-    dphase: npt.NDArray[T],
-) -> npt.NDArray[T]:
+    weighted_adjacency_matrix: coo_matrix, params: arr, phase: arr, dphase: arr
+) -> arr:
     """
     Return acceleration
 
@@ -39,7 +53,7 @@ def get_acceleration(
     sin_phase_adj = weighted_adjacency_matrix @ sin_phase
     cos_phase_adj = weighted_adjacency_matrix @ cos_phase
 
-    force: npt.NDArray[T] = (
+    force = (
         params[0]  # P
         - params[1] * dphase  # -gamma * velocity
         + cos_phase * sin_phase_adj  # interaction1
@@ -48,13 +62,31 @@ def get_acceleration(
     return force / params[2]  # a = F / m
 
 
+@overload
 def rk1(
     weighted_adjacency_matrix: coo_matrix,
-    params: npt.NDArray[T],
-    phase: npt.NDArray[T],
-    dphase: npt.NDArray[T],
-    dt: npt.NDArray[T],
-) -> tuple[npt.NDArray[T], npt.NDArray[T]]:
+    params: arr32,
+    phase: arr32,
+    dphase: arr32,
+    dt: arr32,
+) -> tuple[arr32, arr32]:
+    ...
+
+
+@overload
+def rk1(
+    weighted_adjacency_matrix: coo_matrix,
+    params: arr64,
+    phase: arr64,
+    dphase: arr64,
+    dt: arr64,
+) -> tuple[arr64, arr64]:
+    ...
+
+
+def rk1(
+    weighted_adjacency_matrix: coo_matrix, params: arr, phase: arr, dphase: arr, dt: arr
+) -> tuple[arr, arr]:
     """
     Return next phase, next dphase
 
@@ -71,13 +103,31 @@ def rk1(
     return (phase + dt * velocity).view(dtype), (dphase + dt * acceleration).view(dtype)
 
 
+@overload
 def rk2(
     weighted_adjacency_matrix: coo_matrix,
-    params: npt.NDArray[T],
-    phase: npt.NDArray[T],
-    dphase: npt.NDArray[T],
-    dt: npt.NDArray[T],
-) -> tuple[npt.NDArray[T], npt.NDArray[T]]:
+    params: arr32,
+    phase: arr32,
+    dphase: arr32,
+    dt: arr32,
+) -> tuple[arr32, arr32]:
+    ...
+
+
+@overload
+def rk2(
+    weighted_adjacency_matrix: coo_matrix,
+    params: arr64,
+    phase: arr64,
+    dphase: arr64,
+    dt: arr64,
+) -> tuple[arr64, arr64]:
+    ...
+
+
+def rk2(
+    weighted_adjacency_matrix: coo_matrix, params: arr, phase: arr, dphase: arr, dt: arr
+) -> tuple[arr, arr]:
     """
     Return next phase, next dphase
 
@@ -88,9 +138,9 @@ def rk2(
     dt: (1, )
     """
     dtype = phase.dtype
-    get_acc: Callable[
-        [npt.NDArray[T], npt.NDArray[T]], npt.NDArray[T]
-    ] = functools.partial(get_acceleration, weighted_adjacency_matrix, params)
+    get_acc: Callable[[arr, arr], arr] = functools.partial(
+        get_acceleration, weighted_adjacency_matrix, params
+    )
 
     acceleration1 = get_acc(phase, dphase)
     velocity1 = dphase
@@ -105,13 +155,31 @@ def rk2(
     return (phase + dt * velocity).view(dtype), (dphase + dt * acceleration).view(dtype)
 
 
+@overload
 def rk4(
     weighted_adjacency_matrix: coo_matrix,
-    params: npt.NDArray[T],
-    phase: npt.NDArray[T],
-    dphase: npt.NDArray[T],
-    dt: npt.NDArray[T],
-) -> tuple[npt.NDArray[T], npt.NDArray[T]]:
+    params: arr32,
+    phase: arr32,
+    dphase: arr32,
+    dt: arr32,
+) -> tuple[arr32, arr32]:
+    ...
+
+
+@overload
+def rk4(
+    weighted_adjacency_matrix: coo_matrix,
+    params: arr64,
+    phase: arr64,
+    dphase: arr64,
+    dt: arr64,
+) -> tuple[arr64, arr64]:
+    ...
+
+
+def rk4(
+    weighted_adjacency_matrix: coo_matrix, params: arr, phase: arr, dphase: arr, dt: arr
+) -> tuple[arr, arr]:
     """
     Return next phase, next dphase
 
@@ -122,9 +190,9 @@ def rk4(
     dt: (1, )
     """
     dtype = phase.dtype
-    get_acc: Callable[
-        [npt.NDArray[T], npt.NDArray[T]], npt.NDArray[T]
-    ] = functools.partial(get_acceleration, weighted_adjacency_matrix, params)
+    get_acc: Callable[[arr, arr], arr] = functools.partial(
+        get_acceleration, weighted_adjacency_matrix, params
+    )
 
     acceleration1 = get_acc(phase, dphase)
     velocity1 = dphase

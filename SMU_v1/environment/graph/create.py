@@ -33,7 +33,7 @@ def create_graph(rng: int | np.random.Generator | None = None) -> nx.Graph:
         )
         num_nodes = max(1, num_nodes)  # Clip
     else:
-        raise ValueError(f"No such distribution: {num_nodes_distribution.name}")
+        raise ValueError(f"Invalid distribution: {num_nodes_distribution.name}")
 
     if config.topology == "shk":
         return get_shk(

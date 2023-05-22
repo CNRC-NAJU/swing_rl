@@ -8,22 +8,35 @@ naive implementation
 compiled with jit
 """
 
-from typing import TypeVar
+from typing import overload
 
 import numpy as np
 import numpy.typing as npt
 from numba import njit
 
-T = TypeVar("T", np.float16, np.float32, np.float64, np.float128)
+arr32 = npt.NDArray[np.float32]
+arr64 = npt.NDArray[np.float64]
+arr = np.ndarray
+
+
+@overload
+def get_acceleration(
+    weighted_adjacency_matrix: arr32, params: arr32, phase: arr32, dphase: arr32
+) -> arr32:
+    ...
+
+
+@overload
+def get_acceleration(
+    weighted_adjacency_matrix: arr64, params: arr64, phase: arr64, dphase: arr64
+) -> arr64:
+    ...
 
 
 @njit(fastmath=True)
 def get_acceleration(
-    weighted_adjacency_matrix: npt.NDArray[T],
-    params: npt.NDArray[T],
-    phase: npt.NDArray[T],
-    dphase: npt.NDArray[T],
-) -> npt.NDArray[T]:
+    weighted_adjacency_matrix: arr, params: arr, phase: arr, dphase: arr
+) -> arr:
     """
     Return acceleration
 
@@ -33,7 +46,7 @@ def get_acceleration(
     dphase: (N, )
     """
     num_nodes = len(weighted_adjacency_matrix)
-    force: npt.NDArray[T] = params[0] - params[1] * dphase  # P - gamma * velocity
+    force = params[0] - params[1] * dphase  # P - gamma * velocity
 
     for node in range(num_nodes):
         for neighbor in range(node + 1, num_nodes):
@@ -53,14 +66,32 @@ def get_acceleration(
     return force / params[2]  # a = F / m
 
 
+@overload
+def rk1(
+    weighted_adjacency_matrix: arr32,
+    params: arr32,
+    phase: arr32,
+    dphase: arr32,
+    dt: arr32,
+) -> tuple[arr32, arr32]:
+    ...
+
+
+@overload
+def rk1(
+    weighted_adjacency_matrix: arr64,
+    params: arr64,
+    phase: arr64,
+    dphase: arr64,
+    dt: arr64,
+) -> tuple[arr64, arr64]:
+    ...
+
+
 @njit(fastmath=True)
 def rk1(
-    weighted_adjacency_matrix: npt.NDArray[T],
-    params: npt.NDArray[T],
-    phase: npt.NDArray[T],
-    dphase: npt.NDArray[T],
-    dt: npt.NDArray[T],
-) -> tuple[npt.NDArray[T], npt.NDArray[T]]:
+    weighted_adjacency_matrix: arr, params: arr, phase: arr, dphase: arr, dt: arr
+) -> tuple[arr, arr]:
     """
     Return next phase, next dphase
 
@@ -77,14 +108,32 @@ def rk1(
     return (phase + dt * velocity).view(dtype), (dphase + dt * acceleration).view(dtype)
 
 
+@overload
+def rk2(
+    weighted_adjacency_matrix: arr32,
+    params: arr32,
+    phase: arr32,
+    dphase: arr32,
+    dt: arr32,
+) -> tuple[arr32, arr32]:
+    ...
+
+
+@overload
+def rk2(
+    weighted_adjacency_matrix: arr64,
+    params: arr64,
+    phase: arr64,
+    dphase: arr64,
+    dt: arr64,
+) -> tuple[arr64, arr64]:
+    ...
+
+
 @njit(fastmath=True)
 def rk2(
-    weighted_adjacency_matrix: npt.NDArray[T],
-    params: npt.NDArray[T],
-    phase: npt.NDArray[T],
-    dphase: npt.NDArray[T],
-    dt: npt.NDArray[T],
-) -> tuple[npt.NDArray[T], npt.NDArray[T]]:
+    weighted_adjacency_matrix: arr, params: arr, phase: arr, dphase: arr, dt: arr
+) -> tuple[arr, arr]:
     """
     Return next phase, next dphase
 
@@ -112,14 +161,32 @@ def rk2(
     return (phase + dt * velocity).view(dtype), (dphase + dt * acceleration).view(dtype)
 
 
+@overload
+def rk4(
+    weighted_adjacency_matrix: arr32,
+    params: arr32,
+    phase: arr32,
+    dphase: arr32,
+    dt: arr32,
+) -> tuple[arr32, arr32]:
+    ...
+
+
+@overload
+def rk4(
+    weighted_adjacency_matrix: arr64,
+    params: arr64,
+    phase: arr64,
+    dphase: arr64,
+    dt: arr64,
+) -> tuple[arr64, arr64]:
+    ...
+
+
 @njit(fastmath=True)
 def rk4(
-    weighted_adjacency_matrix: npt.NDArray[T],
-    params: npt.NDArray[T],
-    phase: npt.NDArray[T],
-    dphase: npt.NDArray[T],
-    dt: npt.NDArray[T],
-) -> tuple[npt.NDArray[T], npt.NDArray[T]]:
+    weighted_adjacency_matrix: arr, params: arr, phase: arr, dphase: arr, dt: arr
+) -> tuple[arr, arr]:
     """
     Return next phase, next dphase
 
