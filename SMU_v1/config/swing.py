@@ -35,6 +35,7 @@ class SwingConfig:
 
     def from_dict(self, config: dict[str, Any]) -> None:
         for key, value in config.items():
+            assert hasattr(self, key)
             setattr(self, key, value)
 
 

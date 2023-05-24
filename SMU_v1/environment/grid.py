@@ -1,3 +1,4 @@
+import itertools
 import math
 from typing import cast
 
@@ -289,9 +290,7 @@ class Grid:
             # Round + Clipping: max_units > 1
             renewable_masses = np.clip(np.round(renewable_masses), 0.0, None)
         else:
-            raise ValueError(
-                f"Invalid distribution {renewable_mass_distribution.name}"
-            )
+            raise ValueError(f"Invalid distribution {renewable_mass_distribution.name}")
         renewables: list[Node] = [
             Renewable.from_capacity(capacity, mass)
             for capacity, mass in zip(renewable_capacities, renewable_masses)
@@ -383,7 +382,7 @@ class Grid:
                 )
 
     def rebalance_undirected(
-        self, weights: npt.NDArray[np.float32], max_trial: int
+        self, weights: npt.NDArray[np.float32], max_trials: int
     ) -> bool:
         """
         Rebalance total power in grid, by perturbation
@@ -392,10 +391,10 @@ class Grid:
         weights: [N, ], all values at [-1.0, 1.0]
         abs(weights): probability that each node will be selected
         sign(weights): If positive, increase active units. Otherwise, decrease
-        max_trial: Maximum number of rebalancing trial
+        max_trials: Maximum number of rebalancing trial
 
         Return
-        When rebalancing is successful before max_trial attempts, return True.
+        When rebalancing is successful before max_trials attempts, return True.
         """
         # No need to do rebalancing
         if self.power_imbalance == 0:
@@ -405,15 +404,12 @@ class Grid:
         weights /= np.sum(np.abs(weights))
 
         # Rebalancing
-        for _ in range(max_trial + 1):
+        for _ in range(max_trials):
             random_idx = self.rng.choice(self.num_nodes, p=np.abs(weights))
+
+            # Increase node if weight is positive, decrease otherwise
             node, weight = self.nodes[random_idx], weights[random_idx]
-            (
-                # Increase node if weight is positive, decrease otherwise
-                node.increase()
-                if weight > 0
-                else node.decrease()
-            )
+            node.increase() if weight > 0 else node.decrease()
 
             # Check current imbalance state
             if self.power_imbalance == 0:
@@ -422,7 +418,7 @@ class Grid:
         return False
 
     def rebalance_directed(
-        self, weights: npt.NDArray[np.float32], max_trial: int
+        self, weights: npt.NDArray[np.float32], max_trials: int
     ) -> bool:
         """
         Rebalance total power in grid, by increaing/decresing to reduce imbalance
@@ -430,10 +426,10 @@ class Grid:
 
         Args
         weights: [N, ], all values at [0.0, 1.0]
-        max_trial: Maximum number of rebalancing trial
+        max_trials: Maximum number of rebalancing trial
 
         Return
-        When rebalancing is successful before max_trial attempts, return True.
+        When rebalancing is successful before max_trials attempts, return True.
         """
         assert np.all(weights >= 0)
         # No need to do rebalancing
@@ -451,10 +447,63 @@ class Grid:
         # Normalize weight
         weights /= np.sum(np.abs(weights))
 
-        for _ in range(max_trial + 1):
+        for _ in range(max_trials):
             random_idx = self.rng.choice(self.num_nodes, p=np.abs(weights))
+
+            # Increase node if weight is positive, decrease otherwise
             node, weight = self.nodes[random_idx], weights[random_idx]
-            # Increasenode if weight is positive, decrease otherwise
+            node.increase() if weight > 0 else node.decrease()
+
+            # Check current imbalance state
+            if self.power_imbalance == 0:
+                return True
+
+        return False
+
+    def rebalance_deterministic(
+        self, weights: npt.NDArray[np.float32], max_trials: int
+    ) -> bool:
+        """
+        Rebalance total power in grid, by increaing/decresing to reduce imbalance
+        The rebalancing is done in the order of the size of each node weight
+
+        Args
+        weights: [N, ], all values at [0.0, 1.0]
+        max_trials: Maximum number of rebalancing trial
+
+        Return
+        When rebalancing is successful before max_trials attempts, return True.
+
+
+        각 node들의 weight -> 큰 순서대로 deterministic하게 rebalance
+
+        ex) power 가 모자란 상황
+        ordered 되어 있는 순서: [G1, S1, G2, G3, S2]
+        G1.increase() fully active
+        S1.decrease()
+        G2.increase()
+        """
+        assert np.all(weights >= 0)
+        # No need to do rebalancing
+        power_imbalance = self.power_imbalance
+        if power_imbalance == 0:
+            return True
+
+        # Sort weight in the order of large -> small
+        node_order = np.argsort(weights)[::-1]
+
+        # Choose the direction to reduce power imbalance
+        is_consumer = self.is_consumer + self.is_sink
+        if power_imbalance > 0:
+            # Direction to increase consumption/decrease production
+            weights[~is_consumer] *= -1.0
+        else:
+            # Direction to decrease consumption/increase production
+            weights[is_consumer] *= -1.0
+
+        for _, node_idx in zip(range(max_trials), itertools.cycle(node_order)):
+            # Increase node if weight is positive, decrease otherwise
+            node, weight = self.nodes[node_idx], weights[node_idx]
             node.increase() if weight > 0 else node.decrease()
 
             # Check current imbalance state
@@ -495,6 +544,13 @@ class Grid:
         return perturbation
 
     def perturbate(self, perturbation: npt.NDArray[np.int64]) -> None:
+        """
+        Increase/Decrease power of nodes according to perturbation \\
+        Othere states such as phase, dphase of nodes are not changing
+
+        Args
+        perturbation: return of Grid.mark_perturbation
+        """
         for node, direction in zip(self.nodes, perturbation):
             if direction == 0:
                 continue

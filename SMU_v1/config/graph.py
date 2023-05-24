@@ -28,6 +28,7 @@ class GraphConfig:
             **config.pop("num_nodes_distribution")
         )
         for key, value in config.items():
+            assert hasattr(self, key)
             setattr(self, key, value)
 
 

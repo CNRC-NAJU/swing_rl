@@ -70,14 +70,15 @@ class GridConfig:
         self.renewable_capacity_distribution = DistributionConfig(
             **config.pop("renewable_capacity_distribution")
         )
-        self.consumer_max_units_distribution = DistributionConfig(
-            **config.pop("consumer_max_units_distribution")
+        self.consumer_capacity_distribution = DistributionConfig(
+            **config.pop("consumer_capacity_distribution")
         )
         self.sink_capacity_distribution = DistributionConfig(
             **config.pop("sink_capacity_distribution")
         )
 
         for key, value in config.items():
+            assert hasattr(self, key)
             setattr(self, key, value)
 
 

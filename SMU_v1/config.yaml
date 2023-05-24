@@ -28,11 +28,11 @@ graph:
   shk_s: 0.1
   topology: shk
 grid:
-  consumer_max_units_distribution:
+  consumer_capacity_distribution:
     avg: null
     delta: null
-    max: 10.0
-    min: 10.0
+    max: 20.0
+    min: 20.0
     name: uniform
     std: null
   consumer_num_ratio: 0.3

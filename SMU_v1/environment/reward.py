@@ -12,32 +12,85 @@ class Reward(Protocol):
         ...
 
 
-class AreaReward:
-    def __call__(self, dphases: npt.NDArray[DTYPE], times: npt.NDArray[DTYPE]) -> float:
-        """
-        R ~ 1/T sum_t [1/N sum_i abs(dphase_i)] * dt
-        dphases: [S, N]
-        """
-        return -np.mean(np.abs(dphases)).item() * SWING_CONFIG._dt
-
-
 class SlopeReward:
-    def __call__(self, dphases: npt.NDArray[DTYPE], times: npt.NDArray[DTYPE]) -> float:
-        """
-        R ~ [1/N sum_i abs(dphase_i[1] - dphase_i[0])] / dt
+    """
+    Reward = slope of the initial fluctuation \\
+    R ~ [1/N sum_i abs(dphase_i[1] - dphase_i[0])] / dt
+
+    Args
         dphases: [S, N]
-        """
-        return -np.mean(np.abs(dphases[1] - dphases[0])).item() / SWING_CONFIG._dt
+        time: Not used
+    Return
+        reward: negative value, higher the better
+    """
+    def __call__(self, dphases: npt.NDArray[DTYPE], times: npt.NDArray[DTYPE]) -> float:
+        return -(np.mean(np.abs(dphases[1] - dphases[0])) / SWING_CONFIG.dt).item()
+
+
+class AreaReward:
+    """
+    Reward = area under dphases graph \\
+    R ~ 1/T sum_t [1/N sum_i abs(dphase_i)]
+
+    Args
+        dphases: [S, N]
+        times: Not used
+    Return
+        reward: negative value, higher the better
+    """
+    def __call__(self, dphases: npt.NDArray[DTYPE], times: npt.NDArray[DTYPE]) -> float:
+        return -np.mean(np.abs(dphases)).item()
 
 
 class WeightedAreaReward:
-    def __call__(self, dphases: npt.NDArray[DTYPE], times: npt.NDArray[DTYPE]) -> float:
-        """
-        R ~ 1/T sum_t [1/N sum_i t * abs(dphase_i)] * dt
+    """
+    Reward = area under dphases graph, weighted by it's time \\
+    R ~ 1/T sum_t t * [1/N sum_i abs(dphase_i)]
+
+    Args
         dphases: [S, N]
         time: [S, ]
-        """
+    Return
+        reward: negative value, higher the better
+    """
+    def __call__(self, dphases: npt.NDArray[DTYPE], times: npt.NDArray[DTYPE]) -> float:
         return -np.mean(np.abs(dphases).mean(axis=1) * times).item()
+
+
+class ThresholdAreaReward:
+    """
+    Reward = area of dphases graph, in which exceeds certain threshold \\
+    R ~ 1/T sum_t [1/N sum_i max(0.0, abs(dphase_i) - threshold)]
+
+    Args
+        dphases: [S, N]
+        time: Not used
+    Return
+        reward: negative value, higher the better
+    """
+    def __call__(self, dphases: npt.NDArray[DTYPE], times: npt.NDArray[DTYPE]) -> float:
+        area = np.maximum(
+            np.zeros_like(dphases), np.abs(dphases) - RL_CONFIG.fail_threshold
+        )
+        return -np.mean(area).item()
+
+
+class WeightedThresholdAreaReward:
+    """
+    Reward = area of dphases graph, in which exceeds certain threshold weighted by time \\
+    R ~ 1/T sum_t [1/N sum_i t * max(0.0, abs(dphase_i) - threshold)]
+
+    Args
+        dphases: [S, N]
+        time: [S, ]
+    Return
+        reward: negative value, higher the better
+    """
+    def __call__(self, dphases: npt.NDArray[DTYPE], times: npt.NDArray[DTYPE]) -> float:
+        area = np.maximum(
+            np.zeros_like(dphases), np.abs(dphases) - RL_CONFIG.fail_threshold
+        )
+        return -np.mean(area.mean(axis=1) * times).item()
 
 
 def get_reward_ftn() -> Reward:
@@ -47,8 +100,11 @@ def get_reward_ftn() -> Reward:
         return SlopeReward()
     elif RL_CONFIG.reward == "weighted_area":
         return WeightedAreaReward()
-    else:
-        raise ValueError(f"No such reward: {RL_CONFIG.reward}")
+    elif RL_CONFIG.reward == "threshold_area":
+        return ThresholdAreaReward()
+    elif RL_CONFIG.reward == "weighted_threshold_area":
+        return WeightedThresholdAreaReward()
+    raise ValueError(f"No such reward: {RL_CONFIG.reward}")
 
 
 def reward_failed(num_failed: int, time: float) -> float:

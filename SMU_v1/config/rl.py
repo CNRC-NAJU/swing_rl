@@ -17,7 +17,7 @@ class RLConfig:
     fail_threshold: float = 1e-2
 
     # Rebalancing policy
-    rebalance: Literal["directed", "undirected"] = "directed"
+    rebalance: Literal["directed", "undirected", "deterministic"] = "directed"
     max_rebalance: int = 1000
 
     # Reset range
@@ -27,7 +27,9 @@ class RLConfig:
     reset_node: bool = True
 
     # Reward
-    reward: Literal["area", "slope", "weighted_area"] = "weighted_area"
+    reward: Literal[
+        "area", "slope", "weighted_area", "threshold_area", "weighted_threshold_area"
+    ] = "weighted_threshold_area"
     failed_scale: float = 1.0
 
     # Episode
@@ -54,10 +56,17 @@ class RLConfig:
                 self.reset_node
             ), f"When reset node type, you also need to reset entire nodes"
 
-        assert self.reward in ["area", "slope", "weighted_area"]
+        assert self.reward in [
+            "area",
+            "slope",
+            "weighted_area",
+            "threshold_area",
+            "weighted_threshold_area",
+        ]
 
     def from_dict(self, config: dict[str, Any]) -> None:
         for key, value in config.items():
+            assert hasattr(self, key)
             setattr(self, key, value)
 
 
