@@ -202,12 +202,6 @@ class GraphExtractor(BaseFeaturesExtractor):
         # GNN calculation
         x = self.conv1(node_attr, edge_index, edge_weight=edge_attr)  # [BN, node_hid]
         x = self.conv2(x, edge_index, edge_weight=edge_attr)  # [BN, node_hid]
-        if torch.isnan(x).any():
-            print(f"{torch.isnan(node_attr).any().item()}", end="\t")
-            print(f"{torch.isnan(edge_attr).any().item()}", end="\t")
-            print(f"{torch.isnan(edge_index).any().item()}", end="\t")
-            print(f"{torch.isnan(x).any().item()}")
-            print(x.shape)
 
         # Conver to SB3 format
         return self.act(x).reshape(num_batch, -1)  # [B, N*node_hid]

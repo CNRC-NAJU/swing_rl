@@ -1,5 +1,6 @@
 import itertools
 import math
+import warnings
 from typing import cast
 
 import networkx as nx
@@ -30,7 +31,7 @@ class Grid:
         graph: underlying graph structure
         couplings: coupling strength for each edges on graph.
                   If not given, randomly create couplings with proper distribtution
-        node_types: list of node types
+        node_types: list of node types. If not given, randomly create with proper numbers
         nodes: list of nodes Generator/Renewable/Consumer
                If not given, randomly create nodes with proper distribution
                If node_types is given, nodes should follow it's type
@@ -42,51 +43,73 @@ class Grid:
             self.rng = np.random.default_rng(rng)
 
         # Initialize graph
-        self.graph: nx.Graph
-        self.edge_list: npt.NDArray[np.int64]
+        self._graph: nx.Graph
+        self._edge_list: npt.NDArray[np.int64]
         if graph is None:
-            graph = create_graph(self.rng)
-        self.set_graph(graph)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                self.graph = create_graph(self.rng)
+        else:
+            self.graph = graph
 
         # Initialize coupling constants
-        self.weighted_adjacency_matrix: npt.NDArray[DTYPE]
-        self.couplings: npt.NDArray[DTYPE]
+        self._weighted_adjacency_matrix: npt.NDArray[DTYPE]
+        self._couplings: npt.NDArray[DTYPE]
         if couplings is None:
-            couplings = self.create_couplings(self.num_edges, self.rng)
-        self.set_couplings(couplings)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                self.couplings = self.create_couplings(self.num_edges, self.rng)
+        else:
+            self.couplings = couplings
 
         # Initialize node types
-        self.node_types: list[NodeType]
-        self.is_generator: npt.NDArray[np.bool_]
-        self.is_renewable: npt.NDArray[np.bool_]
-        self.is_consumer: npt.NDArray[np.bool_]
-        self.is_sink: npt.NDArray[np.bool_]
+        self._node_types: list[NodeType]
         if node_types is None:
-            node_types = self.create_node_types(self.num_nodes, self.rng)
-        self.set_node_types(node_types)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                self.node_types = self.create_node_types(self.num_nodes, self.rng)
+        else:
+            self.node_types = node_types
 
         # Initialize nodes
-        self.nodes: list[Node]
+        self._nodes: list[Node]
         if nodes is None:
-            nodes = self.create_nodes(self.node_types, rng=self.rng)
-        self.set_nodes(nodes)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                self.nodes = self.create_nodes(self._node_types, rng=self.rng)
+        else:
+            self.nodes = nodes
 
         # Activate
         self.activate()
 
     def __str__(self) -> str:
-        return "\n".join(f"Node {i} - {node}" for i, node in enumerate(self.nodes))
+        return "\n".join(f"Node {i} - {node}" for i, node in enumerate(self._nodes))
 
     # ---------------------------------- Graph -----------------------------------
-    def set_graph(self, graph: nx.Graph) -> None:
-        self.graph = graph
-        self.edge_list = directed2undirected(get_edge_list(graph))
+    @property
+    def graph(self) -> nx.Graph:
+        return self._graph
+
+    @graph.setter
+    def graph(self, graph: nx.Graph) -> None:
+        warnings.warn(
+            "Manually assigning graph. Check coupling constant, node type, and node",
+            stacklevel=2,
+        )
+        self._graph = graph
+        self._edge_list = directed2undirected(get_edge_list(graph))
+
+    @property
+    def edge_list(self) -> npt.NDArray[np.int64]:
+        return self._edge_list
 
     def reset_graph(self) -> None:
-        """Reset underlying graph of grid
+        """Reset underlying graph of grid.
         Coupling constants and node/node types are reset accordingly"""
-        graph = create_graph(self.rng)
-        self.set_graph(graph)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            self.graph = create_graph(self.rng)
 
         # Reset coupling, node types accordingly
         self.reset_coupling()
@@ -94,25 +117,38 @@ class Grid:
 
     @property
     def num_nodes(self) -> int:
-        return self.graph.number_of_nodes()
+        return self._graph.number_of_nodes()
 
     @property
     def num_edges(self) -> int:
-        return self.graph.number_of_edges()
+        return self._graph.number_of_edges()
 
     # ---------------------------------- Coupling -----------------------------------
-    def set_couplings(self, couplings: npt.NDArray[DTYPE]) -> None:
+    @property
+    def couplings(self) -> npt.NDArray[DTYPE]:
+        """(2E, ). Undirected version"""
+        return self._couplings
+
+    @property
+    def weighted_adjacency_matrix(self) -> npt.NDArray[DTYPE]:
+        """(N, N). weighted by coupling constant"""
+        return self._weighted_adjacency_matrix
+
+    @couplings.setter
+    def couplings(self, couplings: npt.NDArray[DTYPE]) -> None:
+        warnings.warn("Manually assigning coupling constant. Check graph", stacklevel=2)
         assert len(couplings) == self.num_edges
 
-        self.weighted_adjacency_matrix = get_weighted_adjacency_matrix(
-            self.graph, couplings  # type: ignore
+        self._weighted_adjacency_matrix = get_weighted_adjacency_matrix(
+            self._graph, couplings  # type: ignore
         )
-        self.couplings = repeat_weight(couplings)  # type: ignore
+        self._couplings = repeat_weight(couplings)  # type: ignore
 
     def reset_coupling(self) -> None:
         """Reset coupling constants of existing grid"""
-        couplings = self.create_couplings(self.num_edges, self.rng)
-        self.set_couplings(couplings)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            self.couplings = self.create_couplings(self.num_edges, self.rng)
 
     @staticmethod
     def create_couplings(num_edges: int, rng: Rng = None) -> npt.NDArray[DTYPE]:
@@ -142,28 +178,45 @@ class Grid:
         return coupling.astype(DTYPE, copy=False)
 
     # ---------------------------------- Node type -----------------------------------
-    def set_node_types(self, node_types: list[NodeType]) -> None:
-        assert len(node_types) == self.num_nodes
+    @property
+    def node_types(self) -> list[NodeType]:
+        return self._node_types
 
-        self.node_types = node_types
-        self.is_generator = np.array(
-            [node_type is NodeType.GENERATOR for node_type in node_types]
+    @node_types.setter
+    def node_types(self, node_types: list[NodeType]) -> None:
+        warnings.warn("Manually assigning node types. Check graph, node", stacklevel=2)
+
+        assert len(node_types) == self.num_nodes
+        self._node_types = node_types
+
+    @property
+    def is_generator(self) -> npt.NDArray[np.bool_]:
+        return np.array(
+            [node_type is NodeType.GENERATOR for node_type in self._node_types]
         )
-        self.is_renewable = np.array(
-            [node_type is NodeType.RENEWABLE for node_type in node_types]
+
+    @property
+    def is_renewable(self) -> npt.NDArray[np.bool_]:
+        return np.array(
+            [node_type is NodeType.RENEWABLE for node_type in self._node_types]
         )
-        self.is_consumer = np.array(
-            [node_type is NodeType.CONSUMER for node_type in node_types]
+
+    @property
+    def is_consumer(self) -> npt.NDArray[np.bool_]:
+        return np.array(
+            [node_type is NodeType.CONSUMER for node_type in self._node_types]
         )
-        self.is_sink = np.array(
-            [node_type is NodeType.SINK for node_type in node_types]
-        )
+
+    @property
+    def is_sink(self) -> npt.NDArray[np.bool_]:
+        return np.array([node_type is NodeType.SINK for node_type in self._node_types])
 
     def reset_node_types(self) -> None:
         """Reset node types of existing grid.
         Nodes is reset accordingly"""
-        node_types = self.create_node_types(self.num_nodes, self.rng)
-        self.set_node_types(node_types)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            self.node_types = self.create_node_types(self.num_nodes, self.rng)
 
         # Reset nodes accordingly
         self.reset_nodes()
@@ -194,14 +247,21 @@ class Grid:
         return node_types
 
     # ------------------------------ Node configuration -----------------------------
-    def set_nodes(self, nodes: list[Node]) -> None:
-        assert self.match_type(self.node_types, nodes)
-        self.nodes = nodes
+    @property
+    def nodes(self) -> list[Node]:
+        return self._nodes
+
+    @nodes.setter
+    def nodes(self, nodes: list[Node]) -> None:
+        warnings.warn("Manually assigning nodes. Check graph, node types", stacklevel=2)
+        assert self.match_type(self._node_types, nodes)
+        self._nodes = nodes
 
     def reset_nodes(self) -> None:
         """Reset node of existing grid"""
-        nodes = self.create_nodes(self.node_types, self.rng)
-        self.set_nodes(nodes)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            self.nodes = self.create_nodes(self._node_types, self.rng)
 
         # activate
         self.activate()
@@ -327,15 +387,15 @@ class Grid:
     # --------------------------- grid parameters -------------------------------
     @property
     def powers(self) -> npt.NDArray[DTYPE]:
-        return np.array([node.power for node in self.nodes], dtype=DTYPE)
+        return np.array([node.power for node in self._nodes], dtype=DTYPE)
 
     @property
     def masses(self) -> npt.NDArray[DTYPE]:
-        return np.array([node.mass for node in self.nodes], dtype=DTYPE)
+        return np.array([node.mass for node in self._nodes], dtype=DTYPE)
 
     @property
     def gammas(self) -> npt.NDArray[DTYPE]:
-        return np.array([node.gamma for node in self.nodes], dtype=DTYPE)
+        return np.array([node.gamma for node in self._nodes], dtype=DTYPE)
 
     @property
     def params(self) -> npt.NDArray[DTYPE]:
@@ -343,20 +403,20 @@ class Grid:
 
     @property
     def active_ratios(self) -> npt.NDArray[np.float32]:
-        return np.array([node.ratio for node in self.nodes], dtype=np.float32)
+        return np.array([node.ratio for node in self._nodes], dtype=np.float32)
 
     # --------------------------- Power on entire grid -------------------------------
     @property
     def power_imbalance(self) -> int:
         """Imbalance of powers at the entire grid"""
-        return sum(node.power for node in self.nodes)
+        return sum(node.power for node in self._nodes)
 
     def activate(self) -> None:
         """Activate each nodes for proper amount
         Sould be called at the very first of grid generation/reset"""
 
         # Initially activate node
-        for node in self.nodes:
+        for node in self._nodes:
             # Make only one unit be active
             node.minimize()
 
@@ -408,7 +468,7 @@ class Grid:
             random_idx = self.rng.choice(self.num_nodes, p=np.abs(weights))
 
             # Increase node if weight is positive, decrease otherwise
-            node, weight = self.nodes[random_idx], weights[random_idx]
+            node, weight = self._nodes[random_idx], weights[random_idx]
             node.increase() if weight > 0 else node.decrease()
 
             # Check current imbalance state
@@ -437,13 +497,13 @@ class Grid:
         if power_imbalance == 0:
             return True
 
-        is_consumer = self.is_consumer + self.is_sink
+        is_user = self.is_consumer + self.is_sink
         if power_imbalance > 0:
             # Direction to increase consumption/decrease production
-            weights[~is_consumer] *= -1.0
+            weights[~is_user] *= -1.0
         else:
             # Direction to decrease consumption/increase production
-            weights[is_consumer] *= -1.0
+            weights[is_user] *= -1.0
         # Normalize weight
         weights /= np.sum(np.abs(weights))
 
@@ -451,7 +511,7 @@ class Grid:
             random_idx = self.rng.choice(self.num_nodes, p=np.abs(weights))
 
             # Increase node if weight is positive, decrease otherwise
-            node, weight = self.nodes[random_idx], weights[random_idx]
+            node, weight = self._nodes[random_idx], weights[random_idx]
             node.increase() if weight > 0 else node.decrease()
 
             # Check current imbalance state
@@ -503,7 +563,7 @@ class Grid:
 
         for _, node_idx in zip(range(max_trials), itertools.cycle(node_order)):
             # Increase node if weight is positive, decrease otherwise
-            node, weight = self.nodes[node_idx], weights[node_idx]
+            node, weight = self._nodes[node_idx], weights[node_idx]
             node.increase() if weight > 0 else node.decrease()
 
             # Check current imbalance state
@@ -533,7 +593,7 @@ class Grid:
         # Set the direction of perturbation of selected nodes
         perturbation = np.zeros(self.num_nodes, dtype=np.int64)
         for idx in indices:
-            node = self.nodes[idx]
+            node = self._nodes[idx]
             if node.full_active:
                 perturbation[idx] = -1
             elif node.full_inactive:
@@ -551,7 +611,7 @@ class Grid:
         Args
         perturbation: return of Grid.mark_perturbation
         """
-        for node, direction in zip(self.nodes, perturbation):
+        for node, direction in zip(self._nodes, perturbation):
             if direction == 0:
                 continue
             elif direction == -1:

@@ -15,7 +15,7 @@ from .rl import RL_CONFIG, RLConfig
 from .swing import SWING_CONFIG, SwingConfig
 
 
-@dataclass
+@dataclass(slots=True)
 class Config:
     node: NodeConfig = NODE_CONFIG
     graph: GraphConfig = GRAPH_CONFIG
@@ -28,7 +28,10 @@ class Config:
 
     @property
     def dict(self) -> dict[str, Any]:
-        return asdict(self)
+        def remove_prefix(data):
+            return {k.strip("_"): v for k, v in dict(data).items()}
+
+        return asdict(self, dict_factory=remove_prefix)
 
     def to_yaml(self, file_path: Path | str) -> None:
         with open(file_path, "w") as f:

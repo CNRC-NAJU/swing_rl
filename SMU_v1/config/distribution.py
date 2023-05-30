@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from typing import Literal
 
+_DISTRIBUTION_NAME = Literal["uniform", "normal", "uniform_wo_avg", "normal_wo_avg"]
 
-@dataclass
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class DistributionConfig:
-    name: Literal["uniform", "normal", "uniform_wo_avg", "normal_wo_avg"] = (
-        "uniform"  # Name of the distributions
-    )
+    name: _DISTRIBUTION_NAME = "uniform"  # Name of the distributions
     min: float | None = None  # uniform: minimum
     max: float | None = None  # uniform: maximum
     delta: float | None = None  # uniform_wo_avg: min=avg-delta, max=avg+delta
@@ -14,15 +14,13 @@ class DistributionConfig:
     std: float | None = None  # normal, normal_wo_avg: standard deviation
 
     def __post_init__(self) -> None:
+        assert self.name in ["uniform", "normal", "uniform_wo_avg", "normal_wo_avg"]
+
         if self.name == "uniform":
-            assert self.min is not None
-            assert self.max is not None
+            assert (self.min is not None) and (self.max is not None)
         elif self.name == "normal":
-            assert self.avg is not None
-            assert self.std is not None
+            assert (self.avg is not None) and (self.std is not None)
         elif self.name == "uniform_wo_avg":
             assert self.delta is not None
         elif self.name == "normal_wo_avg":
             assert self.std is not None
-        else:
-            raise ValueError(f"No such distribution name: {self.name}")

@@ -1,42 +1,78 @@
 from dataclasses import dataclass
 from typing import Any, Literal, Type
+import warnings
 
 import numpy as np
 import numpy.typing as npt
 
 
-@dataclass
+_NAME = Literal["rk1", "rk2", "rk4"]
+_DTYPE = Literal[32, 64]
+
+@dataclass(slots=True)
 class SwingConfig:
     # which solver to solve swing equation
-    name: Literal["rk1", "rk2", "rk4"] = "rk4"
+    _name: _NAME  = "rk4"
 
     # step size
     _dt: float = 1e-3
 
     # dtype
-    _dtype: Literal[32, 64] = 64
+    _dtype: _DTYPE = 64
 
     def __post__init__(self) -> None:
-        assert self.name in ["rk1", "rk2", "rk4"]
-        assert self._dtype in [32, 64]
-
-    @property
-    def dtype(self) -> Type[np.float32] | Type[np.float64]:
-        if self._dtype == 32:
-            return np.float32
-        elif self._dtype == 64:
-            return np.float64
-        else:
-            raise ValueError(f"Unsupported dtype: float{self._dtype}")
-
-    @property
-    def dt(self) -> npt.NDArray:
-        return np.array(self._dt, dtype=self.dtype)
+        assert self.validate_name(self._name)
+        assert self.validate_dtype(self._dtype)
 
     def from_dict(self, config: dict[str, Any]) -> None:
         for key, value in config.items():
             assert hasattr(self, key)
             setattr(self, key, value)
+
+    # --------------------- Name -------------------------
+    @staticmethod
+    def validate_name(name: _NAME) -> bool:
+        return name in  ["rk1", "rk2", "rk4"]
+
+    @property
+    def name(self) -> _NAME:
+        return self._name
+
+    @name.setter
+    def name(self, value: _NAME) -> None:
+        if not self.validate_name(value):
+            warnings.warn(f"Invalid swing solver name: {value}. Ignore", stacklevel=2)
+            return
+        self._name = value
+
+    # --------------------------- dtype ----------------------------
+    @staticmethod
+    def validate_dtype(dtype: int) -> bool:
+        return dtype in [32, 64]
+
+    @property
+    def dtype(self) -> Type[np.float32] | Type[np.float64]:
+        if self._dtype == 32:
+            return np.float32
+        else:
+            return np.float64
+
+    @dtype.setter
+    def dtype(self, value: _DTYPE) -> None:
+        if not self.validate_dtype(value):
+            warnings.warn(f"Unsupported dtype: float{value}. Ignore", stacklevel=2)
+            return
+        self._dtype = value
+
+    # ---------------------------- dt -----------------------------
+    @property
+    def dt(self) -> npt.NDArray:
+        return np.array(self._dt, dtype=self.dtype)
+
+    @dt.setter
+    def dt(self, value: float) -> None:
+        self._dt = value
+
 
 
 SWING_CONFIG = SwingConfig()

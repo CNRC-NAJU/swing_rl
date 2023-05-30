@@ -31,20 +31,11 @@ grid:
   consumer_capacity_distribution:
     avg: null
     delta: null
-    max: 20.0
-    min: 20.0
+    max: 10.0
+    min: 10.0
     name: uniform
     std: null
   consumer_num_ratio: 0.3
-  sink_capacity_distribution:
-    avg: null
-    delta: 4.0
-    max: null
-    min: null
-    name: uniform_wo_avg
-    std: null
-  sink_num_ratio: 0.1
-  sink_spare: 1.0
   coupling_distribution:
     avg: null
     delta: null
@@ -60,7 +51,7 @@ grid:
     name: uniform_wo_avg
     std: null
   generator_num_ratio: 0.4
-  generator_spare: 1.0
+  generator_spare: 1.1
   initial_active_ratio: 0.5
   initial_max_rebalance: 1000
   initial_rebalance: directed
@@ -79,19 +70,28 @@ grid:
     name: uniform
     std: null
   renewable_num_ratio: 0.2
+  sink_capacity_distribution:
+    avg: null
+    delta: 4.0
+    max: null
+    min: null
+    name: uniform_wo_avg
+    std: null
+  sink_num_ratio: 0.1
+  sink_spare: 1.1
   source_ratio: 4.0
 node:
   consumer_unit_gamma: 1.0
   consumer_unit_mass: 1.0
   consumer_unit_power: -1
-  sink_unit_gamma: 1.0
-  sink_unit_mass: 1.0
-  sink_unit_power: -1
   generator_unit_gamma: 1.0
   generator_unit_mass: 1.0
   generator_unit_power: 1
   renewable_unit_gamma_mass_ratio: 1.0
   renewable_unit_power: 1
+  sink_unit_gamma: 1.0
+  sink_unit_mass: 1.0
+  sink_unit_power: -1
 observation:
   active_ratio: true
   coupling: true
@@ -104,7 +104,7 @@ observation:
   phase: true
   power: true
 rl:
-  equilibrium_time: 1
+  equilibrium_time: 1.0
   fail_threshold: 0.01
   failed_scale: 1.0
   max_rebalance: 1000
@@ -115,10 +115,10 @@ rl:
   reset_graph: false
   reset_node: true
   reset_node_type: false
-  reward: weighted_area
+  reward: weighted_threshold_area
   stable_threshold: 0.0001
-  steady_time: 20
+  steady_time: 20.0
 swing:
-  _dt: 0.001
-  _dtype: 32
+  dt: 0.001
+  dtype: 64
   name: rk4
