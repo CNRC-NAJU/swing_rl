@@ -47,7 +47,7 @@ grid:
     avg: null
     delta: 4.0
     max: null
-    min: null
+    min: 2.0
     name: uniform_wo_avg
     std: null
   generator_num_ratio: 0.4
@@ -59,7 +59,7 @@ grid:
     avg: null
     delta: 4.0
     max: null
-    min: null
+    min: 2.0
     name: uniform_wo_avg
     std: null
   renewable_mass_distribution:
@@ -74,7 +74,7 @@ grid:
     avg: null
     delta: 4.0
     max: null
-    min: null
+    min: 2.0
     name: uniform_wo_avg
     std: null
   sink_num_ratio: 0.1

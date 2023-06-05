@@ -1,6 +1,6 @@
 import warnings
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 _ACTIVATION = Literal["relu", "gelu", "selu", "elu", "sigmoid", "tanh"]
 
@@ -30,6 +30,8 @@ class AgentConfig:
 
     def __post_init__(self) -> None:
         assert self.validate_activation(self._activation)
+        assert self.validate_bn_momentum(self._bn_momentum)
+        assert self.validate_dropout(self._dropout)
 
     def from_dict(self, config: dict[str, Any]) -> None:
         for key, value in config.items():
@@ -39,7 +41,7 @@ class AgentConfig:
     # --------------------- activation -------------------------
     @staticmethod
     def validate_activation(activation: _ACTIVATION) -> bool:
-        return activation in ["relu", "gelu", "selu", "elu", "sigmoid", "tanh"]
+        return activation in get_args(_ACTIVATION)
 
     @property
     def activation(self) -> _ACTIVATION:

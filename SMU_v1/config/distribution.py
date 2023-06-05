@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, get_args
 
 _DISTRIBUTION_NAME = Literal["uniform", "normal", "uniform_wo_avg", "normal_wo_avg"]
 
@@ -14,7 +14,7 @@ class DistributionConfig:
     std: float | None = None  # normal, normal_wo_avg: standard deviation
 
     def __post_init__(self) -> None:
-        assert self.name in ["uniform", "normal", "uniform_wo_avg", "normal_wo_avg"]
+        assert self.name in get_args(_DISTRIBUTION_NAME)
 
         if self.name == "uniform":
             assert (self.min is not None) and (self.max is not None)

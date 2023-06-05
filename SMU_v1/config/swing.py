@@ -1,18 +1,18 @@
-from dataclasses import dataclass
-from typing import Any, Literal, Type
 import warnings
+from dataclasses import dataclass
+from typing import Any, Literal, Type, get_args
 
 import numpy as np
 import numpy.typing as npt
 
-
 _NAME = Literal["rk1", "rk2", "rk4"]
 _DTYPE = Literal[32, 64]
+
 
 @dataclass(slots=True)
 class SwingConfig:
     # which solver to solve swing equation
-    _name: _NAME  = "rk4"
+    _name: _NAME = "rk4"
 
     # step size
     _dt: float = 1e-3
@@ -32,7 +32,7 @@ class SwingConfig:
     # --------------------- Name -------------------------
     @staticmethod
     def validate_name(name: _NAME) -> bool:
-        return name in  ["rk1", "rk2", "rk4"]
+        return name in get_args(_NAME)
 
     @property
     def name(self) -> _NAME:
@@ -48,7 +48,7 @@ class SwingConfig:
     # --------------------------- dtype ----------------------------
     @staticmethod
     def validate_dtype(dtype: int) -> bool:
-        return dtype in [32, 64]
+        return dtype in get_args(_DTYPE)
 
     @property
     def dtype(self) -> Type[np.float32] | Type[np.float64]:
@@ -72,7 +72,6 @@ class SwingConfig:
     @dt.setter
     def dt(self, value: float) -> None:
         self._dt = value
-
 
 
 SWING_CONFIG = SwingConfig()

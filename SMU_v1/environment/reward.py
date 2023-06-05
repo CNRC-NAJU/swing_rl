@@ -104,7 +104,7 @@ def get_reward_ftn() -> Reward:
         return ThresholdAreaReward()
     elif RL_CONFIG.reward == "weighted_threshold_area":
         return WeightedThresholdAreaReward()
-    raise ValueError(f"No such reward: {RL_CONFIG.reward}")
+    raise TypeError(f"No such reward: {RL_CONFIG.reward}")
 
 
 def reward_failed(num_failed: int, time: float) -> float:

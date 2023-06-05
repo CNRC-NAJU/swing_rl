@@ -1,14 +1,13 @@
 import itertools
 import math
 import warnings
-from typing import cast
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from config import GRID_CONFIG, SWING_CONFIG
 
-from .distribution import distribute_capacity
+from .distribution import create_random_numbers, distribute_capacity
 from .graph.create import create_graph
 from .graph.utils import (directed2undirected, get_edge_list,
                           get_weighted_adjacency_matrix, repeat_weight)
@@ -91,6 +90,18 @@ class Grid:
     def graph(self) -> nx.Graph:
         return self._graph
 
+    @property
+    def edge_list(self) -> npt.NDArray[np.int64]:
+        return self._edge_list
+
+    @property
+    def num_nodes(self) -> int:
+        return self._graph.number_of_nodes()
+
+    @property
+    def num_edges(self) -> int:
+        return self._graph.number_of_edges()
+
     @graph.setter
     def graph(self, graph: nx.Graph) -> None:
         warnings.warn(
@@ -99,10 +110,6 @@ class Grid:
         )
         self._graph = graph
         self._edge_list = directed2undirected(get_edge_list(graph))
-
-    @property
-    def edge_list(self) -> npt.NDArray[np.int64]:
-        return self._edge_list
 
     def reset_graph(self) -> None:
         """Reset underlying graph of grid.
@@ -114,14 +121,6 @@ class Grid:
         # Reset coupling, node types accordingly
         self.reset_coupling()
         self.reset_node_types()  # Nodes will also be reset
-
-    @property
-    def num_nodes(self) -> int:
-        return self._graph.number_of_nodes()
-
-    @property
-    def num_edges(self) -> int:
-        return self._graph.number_of_edges()
 
     # ---------------------------------- Coupling -----------------------------------
     @property
@@ -158,36 +157,16 @@ class Grid:
             rng = np.random.default_rng(rng)
 
         # Assign coupling constant to each edges
-        coupling_distribution = GRID_CONFIG.coupling_distribution
-        if coupling_distribution.name == "uniform":
-            coupling = rng.uniform(
-                low=cast(float, coupling_distribution.min),
-                high=cast(float, coupling_distribution.max),
-                size=num_edges,
-            )
-        elif coupling_distribution.name == "normal":
-            coupling = rng.normal(
-                loc=cast(float, coupling_distribution.avg),
-                scale=cast(float, coupling_distribution.std),
-                size=num_edges,
-            )
-            assert coupling_distribution.min is not None
-            coupling = np.clip(coupling, a_min=coupling_distribution.min, a_max=None)
-        else:
-            raise ValueError(f"Invalid distribution {coupling_distribution.name}")
-        return coupling.astype(DTYPE, copy=False)
+        distribution = GRID_CONFIG.coupling_distribution
+
+        return create_random_numbers(
+            distribution, num_edges, rng, dtype="float", clip=(distribution.min, None)
+        )
 
     # ---------------------------------- Node type -----------------------------------
     @property
     def node_types(self) -> list[NodeType]:
         return self._node_types
-
-    @node_types.setter
-    def node_types(self, node_types: list[NodeType]) -> None:
-        warnings.warn("Manually assigning node types. Check graph, node", stacklevel=2)
-
-        assert len(node_types) == self.num_nodes
-        self._node_types = node_types
 
     @property
     def is_generator(self) -> npt.NDArray[np.bool_]:
@@ -210,6 +189,13 @@ class Grid:
     @property
     def is_sink(self) -> npt.NDArray[np.bool_]:
         return np.array([node_type is NodeType.SINK for node_type in self._node_types])
+
+    @node_types.setter
+    def node_types(self, node_types: list[NodeType]) -> None:
+        warnings.warn("Manually assigning node types. Check graph, node", stacklevel=2)
+
+        assert len(node_types) == self.num_nodes
+        self._node_types = node_types
 
     def reset_node_types(self) -> None:
         """Reset node types of existing grid.
@@ -284,24 +270,10 @@ class Grid:
         num_sinks = sum(node_type is NodeType.SINK for node_type in node_types)
 
         # Create consumers
-        capacity_distribution = GRID_CONFIG.consumer_capacity_distribution
-        if capacity_distribution.name == "uniform":
-            consumer_capacities = rng.integers(
-                low=int(cast(float, capacity_distribution.min)),
-                high=int(cast(float, capacity_distribution.max)),
-                endpoint=True,
-                size=num_consumers,
-            )
-        elif capacity_distribution.name == "normal":
-            consumer_capacities = rng.normal(
-                loc=cast(float, capacity_distribution.avg),
-                scale=cast(float, capacity_distribution.std),
-                size=num_consumers,
-            )
-            # Round + Clipping: max_units > 1
-            consumer_capacities = np.clip(np.round(consumer_capacities), 1, None)
-        else:
-            raise ValueError(f"Invalid distribution {capacity_distribution.name}")
+        distribution = GRID_CONFIG.consumer_capacity_distribution
+        consumer_capacities = create_random_numbers(
+            distribution, num_consumers, rng, dtype="int", clip=(distribution.min, None)
+        )
         consumers: list[Node] = [
             Consumer.from_capacity(capacity) for capacity in consumer_capacities
         ]
@@ -334,23 +306,14 @@ class Grid:
             GRID_CONFIG.renewable_capacity_distribution,
             rng,
         )
-        renewable_mass_distribution = GRID_CONFIG.renewable_mass_distribution
-        if renewable_mass_distribution.name == "uniform":
-            renewable_masses = rng.uniform(
-                low=cast(float, renewable_mass_distribution.min),
-                high=cast(float, renewable_mass_distribution.max),
-                size=num_renewables,
-            )
-        elif renewable_mass_distribution.name == "normal":
-            renewable_masses = rng.normal(
-                loc=cast(float, renewable_mass_distribution.avg),
-                scale=cast(float, renewable_mass_distribution.std),
-                size=num_renewables,
-            )
-            # Round + Clipping: max_units > 1
-            renewable_masses = np.clip(np.round(renewable_masses), 0.0, None)
-        else:
-            raise ValueError(f"Invalid distribution {renewable_mass_distribution.name}")
+        distribution = GRID_CONFIG.renewable_mass_distribution
+        renewable_masses = create_random_numbers(
+            distribution,
+            num_renewables,
+            rng,
+            dtype="float",
+            clip=(distribution.min, None),
+        )
         renewables: list[Node] = [
             Renewable.from_capacity(capacity, mass)
             for capacity, mass in zip(renewable_capacities, renewable_masses)
@@ -415,29 +378,36 @@ class Grid:
         """Activate each nodes for proper amount
         Sould be called at the very first of grid generation/reset"""
 
-        # Initially activate node
-        for node in self._nodes:
-            # Make only one unit be active
-            node.minimize()
-
-            # Turn on some of the units
-            num_active_units = int(GRID_CONFIG.initial_active_ratio * node.max_units)
-            for _ in range(num_active_units):
-                node.increase()
-
-        # Resolve power imbalance
         balanced = False
         while not balanced:
+            # Initially activation
+            for node in self._nodes:
+                # Make only one unit be active
+                node.minimize()
+
+                # Turn on some portion of the units
+                num_active_units = int(
+                    GRID_CONFIG.initial_active_ratio * node.max_units
+                )
+                for _ in range(num_active_units):
+                    node.increase()
+
+            # Resolve power imbalance according to strategy
             if GRID_CONFIG.initial_rebalance == "directed":
                 weights = np.ones(self.num_nodes, dtype=np.float32)
                 balanced = self.rebalance_directed(
                     weights, GRID_CONFIG.initial_max_rebalance
                 )
-            else:
+            elif GRID_CONFIG.initial_rebalance == "undirected":
                 weights = self.rng.choice(
                     np.array([-1.0, 1.0], dtype=np.float32), size=self.num_nodes
                 )
                 balanced = self.rebalance_undirected(
+                    weights, GRID_CONFIG.initial_max_rebalance
+                )
+            else:
+                weights = np.ones(self.num_nodes, dtype=np.float32)
+                balanced = self.rebalance_deterministic(
                     weights, GRID_CONFIG.initial_max_rebalance
                 )
 
@@ -553,13 +523,13 @@ class Grid:
         node_order = np.argsort(weights)[::-1]
 
         # Choose the direction to reduce power imbalance
-        is_consumer = self.is_consumer + self.is_sink
+        is_user = self.is_consumer + self.is_sink
         if power_imbalance > 0:
             # Direction to increase consumption/decrease production
-            weights[~is_consumer] *= -1.0
+            weights[~is_user] *= -1.0
         else:
             # Direction to decrease consumption/increase production
-            weights[is_consumer] *= -1.0
+            weights[is_user] *= -1.0
 
         for _, node_idx in zip(range(max_trials), itertools.cycle(node_order)):
             # Increase node if weight is positive, decrease otherwise

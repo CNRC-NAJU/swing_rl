@@ -1,6 +1,7 @@
+from email import generator
 import warnings
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 import numpy as np
 
@@ -23,20 +24,20 @@ class GridConfig:
     _sink_num_ratio: float = 0.1
 
     # Distribution of nodes
-    generator_capacity_distribution: DistributionConfig = DistributionConfig(
-        name="uniform_wo_avg", delta=4.0
+    _generator_capacity_distribution: DistributionConfig = DistributionConfig(
+        name="uniform_wo_avg", min=2.0, delta=4.0
     )
-    renewable_capacity_distribution: DistributionConfig = DistributionConfig(
-        name="uniform_wo_avg", delta=4.0
+    _renewable_capacity_distribution: DistributionConfig = DistributionConfig(
+        name="uniform_wo_avg", min=2.0, delta=4.0
     )
-    renewable_mass_distribution: DistributionConfig = DistributionConfig(
+    _renewable_mass_distribution: DistributionConfig = DistributionConfig(
         name="uniform", min=0.1, max=0.1
     )
-    consumer_capacity_distribution: DistributionConfig = DistributionConfig(
+    _consumer_capacity_distribution: DistributionConfig = DistributionConfig(
         name="uniform", min=10.0, max=10.0
     )
-    sink_capacity_distribution: DistributionConfig = DistributionConfig(
-        name="uniform_wo_avg", delta=4.0
+    _sink_capacity_distribution: DistributionConfig = DistributionConfig(
+        name="uniform_wo_avg", min=2.0, delta=4.0
     )
 
     # Power capacity ratio
@@ -59,6 +60,20 @@ class GridConfig:
             self._sink_num_ratio,
         )
 
+        assert self.validate_capacity_distribution(
+            self._generator_capacity_distribution, without_average=True
+        )
+        assert self.validate_capacity_distribution(
+            self._renewable_capacity_distribution, without_average=True
+        )
+        assert self.validate_capacity_distribution(
+            self._consumer_capacity_distribution, without_average=False
+        )
+        assert self.validate_capacity_distribution(
+            self._sink_capacity_distribution, without_average=True
+        )
+        assert self.validate_mass_distribution(self._renewable_mass_distribution)
+
         assert self.validate_spare(self._generator_spare)
         assert self.validate_spare(self._sink_spare)
 
@@ -70,20 +85,20 @@ class GridConfig:
         self.coupling_distribution = DistributionConfig(
             **config.pop("coupling_distribution")
         )
-        self.generator_capacity_distribution = DistributionConfig(
-            **config.pop("generator_capacity_distribution")
+        self._generator_capacity_distribution = DistributionConfig(
+            **config.pop("_generator_capacity_distribution")
         )
         self.renewable_mass_distribution = DistributionConfig(
             **config.pop("renewable_mass_distribution")
         )
-        self.renewable_capacity_distribution = DistributionConfig(
-            **config.pop("renewable_capacity_distribution")
+        self._renewable_capacity_distribution = DistributionConfig(
+            **config.pop("_renewable_capacity_distribution")
         )
-        self.consumer_capacity_distribution = DistributionConfig(
-            **config.pop("consumer_capacity_distribution")
+        self._consumer_capacity_distribution = DistributionConfig(
+            **config.pop("_consumer_capacity_distribution")
         )
-        self.sink_capacity_distribution = DistributionConfig(
-            **config.pop("sink_capacity_distribution")
+        self._sink_capacity_distribution = DistributionConfig(
+            **config.pop("_sink_capacity_distribution")
         )
 
         num_ratios: dict[str, float] = {}
@@ -157,6 +172,81 @@ class GridConfig:
         self._consumer_num_ratio = consumer
         self._sink_num_ratio = sink
 
+    # --------------------- Capacity distribution -------------------------
+    @staticmethod
+    def validate_capacity_distribution(
+        distribution: DistributionConfig, without_average: bool
+    ) -> bool:
+        valid_min = distribution.min is not None and distribution.min >= 2.0
+        if without_average:
+            valid_name = "wo_avg" in distribution.name
+        else:
+            valid_name = "wo_avg" not in distribution.name
+
+        return valid_min and valid_name
+
+    @property
+    def generator_capacity_distribution(self) -> DistributionConfig:
+        return self._generator_capacity_distribution
+
+    @generator_capacity_distribution.setter
+    def generator_capacity_distribution(self, distribution: DistributionConfig) -> None:
+        if not self.validate_capacity_distribution(distribution, without_average=True):
+            warnings.warn("Invalid capacity distribution. Ignore", stacklevel=2)
+            return
+        self._generator_capacity_distribution = distribution
+
+    @property
+    def renewable_capacity_distribution(self) -> DistributionConfig:
+        return self._renewable_capacity_distribution
+
+    @renewable_capacity_distribution.setter
+    def renewable_capacity_distribution(self, distribution: DistributionConfig) -> None:
+        if not self.validate_capacity_distribution(distribution, without_average=True):
+            warnings.warn("Invalid capacity distribution. Ignore", stacklevel=2)
+            return
+        self._renewable_capacity_distribution = distribution
+
+    @property
+    def consumer_capacity_distribution(self) -> DistributionConfig:
+        return self._consumer_capacity_distribution
+
+    @consumer_capacity_distribution.setter
+    def consumer_capacity_distribution(self, distribution: DistributionConfig) -> None:
+        if not self.validate_capacity_distribution(distribution, without_average=False):
+            warnings.warn("Invalid capacity distribution. Ignore", stacklevel=2)
+            return
+        self._consumer_capacity_distribution = distribution
+
+    @property
+    def sink_capacity_distribution(self) -> DistributionConfig:
+        return self._sink_capacity_distribution
+
+    @sink_capacity_distribution.setter
+    def sink_capacity_distribution(self, distribution: DistributionConfig) -> None:
+        if not self.validate_capacity_distribution(distribution, without_average=True):
+            warnings.warn("Invalid capacity distribution. Ignore", stacklevel=2)
+            return
+        self._sink_capacity_distribution = distribution
+
+    # --------------------- mass distribution -------------------------
+    @staticmethod
+    def validate_mass_distribution(distribution: DistributionConfig) -> bool:
+        valid_min = distribution.min is not None and distribution.min >= 2.0
+        valid_name = "wo_avg" not in distribution.name
+        return valid_min and valid_name
+
+    @property
+    def renewable_mass_distribution(self) -> DistributionConfig:
+        return self._renewable_mass_distribution
+
+    @renewable_mass_distribution.setter
+    def renewable_mass_distribution(self, distribution: DistributionConfig) -> None:
+        if not self.validate_mass_distribution(distribution):
+            warnings.warn("Invalid mass distribution. Ignore", stacklevel=2)
+            return
+        self._renewable_capacity_distribution = distribution
+
     # --------------------- spare -------------------------
     @staticmethod
     def validate_spare(spare: float) -> bool:
@@ -211,7 +301,7 @@ class GridConfig:
             warnings.warn(
                 "Undirected rebalancing strategy may endup Error", stacklevel=2
             )
-        return rebalance in ["directed", "undirected", "deterministic"]
+        return rebalance in get_args(_REBALANCE)
 
     @property
     def initial_rebalance(self) -> _REBALANCE:

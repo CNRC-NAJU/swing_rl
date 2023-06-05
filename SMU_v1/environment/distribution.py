@@ -1,25 +1,22 @@
-from typing import cast
+from typing import Literal, cast, get_args, overload
 
 import numpy as np
-from config.distribution import DistributionConfig
+import numpy.typing as npt
+from config import SWING_CONFIG, DistributionConfig
 
-Rng = np.random.Generator | int | None
+DTYPE = SWING_CONFIG.dtype
 
 
 def uniform_integers_with_sum(
-    tot: int, num: int, delta: int, rng: Rng = None
+    tot: int, num: int, delta: int, low: int, rng: np.random.Generator
 ) -> list[int]:
     """
     Find list of (num) positive integers with sum of (tot)
     It's distribution is uniform in [tot/num-delta, tot/num+delta]
     """
-    # Random engine
-    if not isinstance(rng, np.random.Generator):
-        rng = np.random.default_rng(rng)
-
     # Distribution setting
     avg = round(tot / num)
-    min_range, max_range = max(2, avg - delta), avg + delta
+    min_range, max_range = max(low, avg - delta), avg + delta
     if tot < num * min_range or tot > num * max_range:
         raise ValueError("No solution exists with given parameters.")
 
@@ -41,31 +38,27 @@ def uniform_integers_with_sum(
 
 
 def normal_integers_with_sum(
-    tot: int, num: int, std: float, rng: Rng = None
+    tot: int, num: int, std: float, low: int, rng: np.random.Generator
 ) -> list[int]:
     """
     Find list of (num) positive integers with sum of (tot)
     It's distribution is normal with avg=tot/num and with std
     """
-    # Random engine
-    if not isinstance(rng, np.random.Generator):
-        rng = np.random.default_rng(rng)
-
     # Distribution setting
-    avg = round(tot / num)
-    if avg < 1:
+    avg = tot / num
+    if avg < 2:
         raise ValueError("No solution exists with given parameters.")
 
     # Find random positive integers with normal distribution
     integers: list[int] = np.clip(
-        np.round(rng.normal(loc=avg, scale=std, size=num)).astype(np.int64), 1, None
+        np.round(rng.normal(loc=avg, scale=std, size=num)).astype(np.int64), low, None
     ).tolist()
 
     # Adjust integers to make their sum to be tot
     difference = tot - sum(integers)
     while difference != 0:
         idx = rng.integers(num)
-        integers[idx] = max(1, integers[idx] + np.sign(difference))
+        integers[idx] = max(low, integers[idx] + np.sign(difference))
         difference = tot - sum(integers)
 
     rng.shuffle(integers)
@@ -75,8 +68,8 @@ def normal_integers_with_sum(
 def distribute_capacity(
     tot_capacity: int,
     num: int,
-    distribution_config: DistributionConfig,
-    rng: Rng = None,
+    distribution: DistributionConfig,
+    rng: np.random.Generator,
 ) -> list[int]:
     """
     Randomly distribute the total capacity to given number of sources.
@@ -84,19 +77,80 @@ def distribute_capacity(
 
     Return list of capacities
     """
-    # Random engine
-    if not isinstance(rng, np.random.Generator):
-        rng = np.random.default_rng(rng)
-
-    if distribution_config.name == "uniform_wo_avg":
-        capacities = uniform_integers_with_sum(
-            tot_capacity, num, int(cast(float, distribution_config.delta)), rng
-        )
-    elif distribution_config.name == "normal_wo_avg":
-        capacities = normal_integers_with_sum(
-            tot_capacity, num, cast(float, distribution_config.std), rng
-        )
+    if distribution.name == "uniform_wo_avg":
+        delta = int(cast(float, distribution.delta))
+        low = int(cast(float, distribution.min))
+        capacities = uniform_integers_with_sum(tot_capacity, num, delta, low, rng)
+    elif distribution.name == "normal_wo_avg":
+        std = cast(float, distribution.std)
+        low = int(cast(float, distribution.min))
+        capacities = normal_integers_with_sum(tot_capacity, num, std, low, rng)
     else:
-        raise ValueError(f"Invalid distribution: {distribution_config.name}")
+        raise ValueError(f"Invalid distribution: {distribution.name}")
 
     return capacities
+
+
+@overload
+def create_random_numbers(
+    distribution: DistributionConfig,
+    size: int,
+    rng: np.random.Generator,
+    dtype: Literal["int"],
+    clip: tuple[float | None, float | None],
+) -> npt.NDArray[np.int64]:
+    ...
+
+
+@overload
+def create_random_numbers(
+    distribution: DistributionConfig,
+    size: int,
+    rng: np.random.Generator,
+    dtype: Literal["float"],
+    clip: tuple[float | None, float | None],
+) -> npt.NDArray[DTYPE]:
+    ...
+
+
+def create_random_numbers(
+    distribution: DistributionConfig,
+    size: int,
+    rng: np.random.Generator,
+    dtype: Literal["int", "float"],
+    clip: tuple[float | None, float | None],
+) -> npt.NDArray:
+    """
+    Create a random numbers
+
+    Args
+    distribution: Which distribution the random numbers will follow
+    size: number of random numbers
+    rng: random number generator
+    dtype: integer or float
+    clip: minimum, maximum value of returning random values.
+            If uniform distribution, clip is prior to the distribution configuration
+    """
+    assert dtype in get_args(Literal["int", "float"])
+    if distribution.name == "uniform":
+        low = cast(DTYPE, distribution.min)
+        high = cast(DTYPE, distribution.max)
+
+        if dtype == "int":
+            result = rng.integers(int(low), int(high), size, endpoint=True)
+            clip = tuple(None if c is None else int(c) for c in clip)
+        else:
+            result = rng.uniform(low, high, size).astype(DTYPE, copy=False)
+
+    elif distribution.name == "normal":
+        avg = cast(DTYPE, distribution.avg)
+        std = cast(DTYPE, distribution.std)
+        result = rng.normal(avg, std, size)
+
+        if dtype == "int":
+            result = np.round(result)
+            clip = tuple(None if c is None else int(c) for c in clip)
+    else:
+        raise ValueError(f"Invalid distribution name: {distribution.name}")
+
+    return np.clip(result, a_min=clip[0], a_max=clip[1])

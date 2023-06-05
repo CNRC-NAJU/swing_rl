@@ -1,7 +1,8 @@
 import torch.nn as nn
+from config.agent import _ACTIVATION
 
 
-def get_activation(name: str) -> nn.Module:
+def get_activation(name: _ACTIVATION) -> nn.Module:
     match name:
         case "relu":
             return nn.ReLU()
@@ -15,6 +16,4 @@ def get_activation(name: str) -> nn.Module:
             return nn.Sigmoid()
         case "tanh":
             return nn.Tanh()
-
-    raise ValueError(f"No such activation: {name}")
-
+    raise TypeError(f"No such activation: {name}")

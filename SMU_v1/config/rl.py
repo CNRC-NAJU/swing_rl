@@ -1,6 +1,6 @@
 import warnings
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 _REBALANCE = Literal["directed", "undirected", "deterministic"]
 _REWARD = Literal[
@@ -60,7 +60,7 @@ class RLConfig:
             warnings.warn(
                 "Undirected rebalancing strategy may endup Error", stacklevel=2
             )
-        return rebalance in ["directed", "undirected", "deterministic"]
+        return rebalance in get_args(_REBALANCE)
 
     @property
     def rebalance(self) -> _REBALANCE:
@@ -76,13 +76,7 @@ class RLConfig:
     # --------------------- Reward -------------------------
     @staticmethod
     def validate_reward(reward: _REWARD) -> bool:
-        return reward in [
-            "area",
-            "slope",
-            "weighted_area",
-            "threshold_area",
-            "weighted_threshold_area",
-        ]
+        return reward in get_args(_REWARD)
 
     @property
     def reward(self) -> _REWARD:

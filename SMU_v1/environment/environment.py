@@ -87,8 +87,7 @@ class Environment(gym.Env):
             return partial(
                 self.grid.rebalance_deterministic, max_trials=RL_CONFIG.max_rebalance
             )
-        else:
-            raise ValueError(f"No such rebalance policy: {RL_CONFIG.rebalance}")
+        raise TypeError(f"No such rebalance policy: {RL_CONFIG.rebalance}")
 
     def reset_grid(self, grid: Grid) -> Grid:
         """Reset grid according to reset level"""

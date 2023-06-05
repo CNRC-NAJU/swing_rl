@@ -40,7 +40,7 @@ def swing_solver(
     elif "rk4" in solver_name:
         step_solver = solver_module.rk4
     else:
-        raise ValueError(f"No such solver name: {solver_name}")
+        raise TypeError(f"No such solver name: {solver_name}")
 
     return functools.partial(
         step_solver,
