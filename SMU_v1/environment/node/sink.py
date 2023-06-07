@@ -38,4 +38,4 @@ class Sink(Node):
 
     @property
     def capacity(self) -> int:
-        return self.max_units * self.unit_power
+        return self.max_units * -self.unit_power
