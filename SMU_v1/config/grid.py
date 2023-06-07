@@ -232,7 +232,7 @@ class GridConfig:
     # --------------------- mass distribution -------------------------
     @staticmethod
     def validate_mass_distribution(distribution: DistributionConfig) -> bool:
-        valid_min = distribution.min is not None and distribution.min >= 2.0
+        valid_min = distribution.min is not None and distribution.min > 0.0
         valid_name = "wo_avg" not in distribution.name
         return valid_min and valid_name
 
