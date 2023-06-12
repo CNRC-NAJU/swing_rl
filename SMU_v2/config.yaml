@@ -1,0 +1,138 @@
+grid:
+  graph:
+    topology: shk
+    num_nodes_distribution:
+      name: uniform
+      low: 10.0
+      high: 10.0
+    mean_degree_distribution:
+      name: uniform
+      low: 4.0
+      high: 4.0
+    shk:
+      p: 0.2
+      q: 0.3
+      r: 0.3333
+      s: 0.1
+      initial: 1
+  coupling_distribution:
+    name: uniform
+    low: 10.0
+    high: 10.0
+  num_ratio:
+    consumer: 0.3
+    generator: 0.4
+    renewable: 0.2
+    sink: 0.1
+  consumer:
+    power: -1
+    mass: 1.0
+    gamma: 1.0
+  consumer_capacity_distribution:
+    name: uniform
+    low: 10.0
+    high: 10.0
+  generator:
+    power: 1
+    mass: 1.0
+    gamma: 1.0
+  generator_spare: 1.0
+  generator_capacity_distribution:
+    name: uniform_wo_avg
+    low: 2.0
+    delta: 4.0
+  renewable:
+    power: 1
+    gamma_mass_ratio: 1.0
+  source_ratio: 0.25
+  renewable_capacity_distribution:
+    name: uniform_wo_avg
+    low: 2.0
+    delta: 4.0
+  renewable_mass_distribution:
+    name: uniform
+    low: 0.1
+    high: 0.1
+  sink:
+    power: -1
+    mass: 1.0
+    gamma: 1.0
+  sink_spare: 1.1
+  sink_capacity_distribution:
+    name: uniform_wo_avg
+    low: 2.0
+    delta: 4.0
+  turn_on:
+    strategy: equal
+    ratio: 0.5
+    rebalance:
+      strategy: directed
+      max_trials: 100
+  perturbation:
+    size: 1
+  steady:
+    solver_name: rk4
+    dt: 0.01
+    max_time: 40.0
+    monitor_name: inside
+    monitor_threshold: 0.001
+rl:
+  swing:
+    solver_name: rk4
+    dt: 0.01
+    max_time: 2.0
+    monitor_name: outside
+    monitor_threshold: 1.0
+  reward:
+    name: weighted_area
+    scale: 1.0
+    threshold: 0.0
+  reward_failed:
+    name: inverse_time
+    scale: 10.0
+    threshold: 0.0
+  reward_failed_rebalance:
+    name: constant
+    scale: 100.0
+    threshold: 0.0
+  reward_failed_steady:
+    name: constant
+    scale: 50.0
+    threshold: 0.0
+  train_rebalance:
+    strategy: directed
+    max_trials: 100
+  test_rebalance:
+    strategy: deterministic
+    max_trials: 100
+  reset:
+    graph: false
+    coupling: true
+    node_type: true
+    node: true
+  observation:
+    node_type: true
+    phase: true
+    dphase: true
+    mass: true
+    gamma: true
+    power: true
+    active_ratio: true
+    perturbation: true
+    edge_list: true
+    coupling: true
+  agent:
+    node_type_emb_dim: 8
+    phase_emb_dim: 8
+    dphase_emb_dim: 8
+    mass_emb_dim: 8
+    gamma_emb_dim: 8
+    power_emb_dim: 8
+    active_ratio_emb_dim: 8
+    perturbation_emb_dim: 8
+    coupling_hidden_dim: 8
+    node_hidden_dim: 64
+    activation: elu
+    bn_momentum: 1.0
+    dropout: 0.0
+  num_steps_per_episode: 1000
