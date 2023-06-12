@@ -490,7 +490,7 @@ class Grid:
         )
 
         # Create monitor to check if the swing solving should be early stop or not
-        monitor = get_monitor(config)
+        monitor = get_monitor(config.monitor)
 
         # Container to store full trajectory
         time = 0.0

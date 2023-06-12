@@ -71,18 +71,20 @@ grid:
   perturbation:
     size: 1
   steady:
-    solver_name: rk4
+    name: rk4
     dt: 0.01
     max_time: 40.0
-    monitor_name: inside
-    monitor_threshold: 0.001
+    monitor:
+      name: inside
+      threshold: 0.001
 rl:
   swing:
-    solver_name: rk4
+    name: rk4
     dt: 0.01
     max_time: 2.0
-    monitor_name: outside
-    monitor_threshold: 1.0
+    monitor:
+      name: outside
+      threshold: 1.0
   reward:
     name: weighted_area
     scale: 1.0

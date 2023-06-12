@@ -33,13 +33,13 @@ def get_swing_solver(
     params: [3, N] power, gamma, mass of each node
     """
     swing_acceleration: Callable[[arr, arr], arr]
-    if "sparse" in config.solver_name:
+    if "sparse" in config.name:
         swing_acceleration = partial(
             acceleration.swing_acceleration_sparse,
             coo_matrix(weighted_adjacency_matrix),
             params,
         )
-    elif "original" in config.solver_name:
+    elif "original" in config.name:
         swing_acceleration = partial(
             acceleration.swing_acceleration_original,
             weighted_adjacency_matrix,
@@ -53,13 +53,13 @@ def get_swing_solver(
         )
 
     # Which order of Runge-Kutta to use
-    if "rk1" in config.solver_name:
+    if "rk1" in config.name:
         rk = rk1
-    elif "rk2" in config.solver_name:
+    elif "rk2" in config.name:
         rk = rk2
-    elif "rk4" in config.solver_name:
+    elif "rk4" in config.name:
         rk = rk4
     else:
-        raise TypeError(f"No such solver name: {config.solver_name}")
+        raise TypeError(f"No such solver name: {config.name}")
 
     return partial(rk, swing_acceleration=swing_acceleration, dt=config.dt)

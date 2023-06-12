@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from config.grid import RebalanceConfig, ResetConfig, SwingConfig
+from config.grid import RebalanceConfig, ResetConfig, SwingConfig, MonitorConfig
 
 from .agent import AgentConfig
 from .observation import ObservationConfig
@@ -12,11 +12,10 @@ from .reward import RewardConfig
 class RLConfig:
     # Trajectory for checking failed nodes, calculating reward
     swing: SwingConfig = SwingConfig(
-        _solver_name="rk4",
+        _name="rk4",
         dt=1e-2,
         max_time=2.0,
-        _monitor_name="outside",
-        monitor_threshold=1.0,
+        monitor=MonitorConfig("outside", 1.0)
     )
 
     # Reward functions

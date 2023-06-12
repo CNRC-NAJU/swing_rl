@@ -6,6 +6,7 @@ import numpy as np
 from config.distribution import DistributionConfig
 
 from .graph import GraphConfig
+from .monitor import MonitorConfig
 from .perturbation import PerturbationConfig
 from .swing import SwingConfig
 from .turn_on import TurnOnConfig
@@ -80,11 +81,10 @@ class GridConfig:
     turn_on: TurnOnConfig = TurnOnConfig()
     perturbation: PerturbationConfig = PerturbationConfig()
     steady: SwingConfig = SwingConfig(
-        _solver_name="rk4",
+        _name="rk4",
         dt=1e-2,
         max_time=40.0,
-        _monitor_name="inside",
-        monitor_threshold=1e-3,
+        monitor=MonitorConfig("inside", 1e-3)
     )
 
     def __post_init__(self) -> None:

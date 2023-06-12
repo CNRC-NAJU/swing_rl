@@ -2,7 +2,7 @@ from typing import Protocol
 
 import numpy as np
 import numpy.typing as npt
-from config.grid import SwingConfig
+from config.grid import MonitorConfig
 
 arr = npt.NDArray[np.float64]
 
@@ -47,11 +47,11 @@ class OutsideMonitor:
         return np.any(np.abs(dphase) > self.threshold).item()
 
 
-def get_monitor(config: SwingConfig) -> Monitor:
-    match config.monitor_name:
+def get_monitor(config: MonitorConfig) -> Monitor:
+    match config.name:
         case "null":
             return NullMonitor()
         case "inside":
-            return InsideMonitor(config.monitor_threshold)
+            return InsideMonitor(config.threshold)
         case "outside":
-            return OutsideMonitor(config.monitor_threshold)
+            return OutsideMonitor(config.threshold)
