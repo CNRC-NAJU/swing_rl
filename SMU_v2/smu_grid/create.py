@@ -62,7 +62,7 @@ def create_couplings(
     num_edges: int,
     rng: np.random.Generator,
     *,
-    distribution: DistributionConfig = GRID_CONFIG.coupling_distribution,
+    coupling_distribution: DistributionConfig = GRID_CONFIG.coupling_distribution,
 ) -> npt.NDArray[np.float64]:
     """Create couplings of each edges
     Args
@@ -74,7 +74,11 @@ def create_couplings(
     coupling constant: [num_edges, ], random couplings following given distribution
     """
     return sample(
-        distribution, num_edges, rng, dtype="float", clip=(distribution.low, None)
+        coupling_distribution,
+        num_edges,
+        rng,
+        dtype="float",
+        clip=(coupling_distribution.low, None),
     )
 
 
@@ -98,10 +102,11 @@ def create_node_types(
         num_ratio = NumRatioConfig(**num_ratio)
 
     # Number of each node types, following configuration
-    num_generators = round(num_nodes * num_ratio.generator)
-    num_renewables = round(num_nodes * num_ratio.renewable)
-    num_sinks = round(num_nodes * num_ratio.sink)
+    num_generators = max(1, round(num_nodes * num_ratio.generator))
+    num_renewables = max(1, round(num_nodes * num_ratio.renewable))
+    num_sinks = max(1, round(num_nodes * num_ratio.sink))
     num_consumers = num_nodes - num_generators - num_renewables - num_sinks
+    assert num_consumers > 0, "No consumer in grid. Adjust num_ratio"
 
     # list of node types
     node_types = np.array(
