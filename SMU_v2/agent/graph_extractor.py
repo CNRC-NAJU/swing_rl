@@ -14,16 +14,18 @@ from .mlp import MLP
 
 class GraphExtractor(BaseFeaturesExtractor):
     def __init__(
-        self, observation_space: spaces.Dict, config: AgentConfig = RL_CONFIG.agent
+        self, observation_space: spaces.Dict, config: AgentConfig | None = None
     ):
         def is_observed(observation: OBSERVATION) -> bool:
             return observation_space[observation].shape != (0,)
+
+        if config is None:
+            config = RL_CONFIG.agent
+
         assert observation_space["perturbation"].shape is not None
         self.num_nodes = observation_space["perturbation"].shape[0]
 
-        super().__init__(
-            observation_space, self.num_nodes * config.node_hidden_dim
-        )
+        super().__init__(observation_space, self.num_nodes * config.node_hidden_dim)
 
         # ----------------------------- Node embeddings ---------------------------
         self.node_emb_dim = 0
@@ -124,7 +126,6 @@ class GraphExtractor(BaseFeaturesExtractor):
         else:
             self.perturbation = nn.Identity()
 
-
         # ----------------------------- Edge embeddings ---------------------------
         self.edge_emb_dim = config.coupling_hidden_dim
         if is_observed("coupling"):
@@ -139,14 +140,9 @@ class GraphExtractor(BaseFeaturesExtractor):
         else:
             self.coupling = nn.Identity()
 
-        self.conv1 = gnn.GCNConv(
-            self.node_emb_dim,
-            config.node_hidden_dim,
-        )
-        self.conv2 = gnn.GCNConv(
-            config.node_hidden_dim,
-            config.node_hidden_dim,
-        )
+        # ----------------------------- GNN ---------------------------
+        self.conv1 = gnn.GCNConv(self.node_emb_dim, config.node_hidden_dim)
+        self.conv2 = gnn.GCNConv(config.node_hidden_dim, config.node_hidden_dim)
 
         self.act = get_activation(config.activation)
 
@@ -173,8 +169,7 @@ class GraphExtractor(BaseFeaturesExtractor):
         node_type_emb = self.node_type(observations["node_type"].to(dtype=torch.int64))
         phase_emb = self.phase(
             torch.stack(
-                (observations["phase"].cos(), observations["phase"].sin()),
-                dim=-1,
+                (observations["phase"].cos(), observations["phase"].sin()), dim=-1
             )
         )
         dphase_emb = self.dphase(observations["dphase"].unsqueeze(-1))
@@ -201,7 +196,9 @@ class GraphExtractor(BaseFeaturesExtractor):
         coupling_emb = self.coupling(observations["coupling"].unsqueeze(-1))
         return node_attr, coupling_emb
 
-    def forward(self, observations: OrderedDict[OBSERVATION, torch.Tensor]) -> torch.Tensor:
+    def forward(
+        self, observations: OrderedDict[OBSERVATION, torch.Tensor]
+    ) -> torch.Tensor:
         edge_index = observations["edge_list"].to(dtype=torch.int64)  # [B, 2, E]
         num_batch = edge_index.shape[0]
 
@@ -216,7 +213,8 @@ class GraphExtractor(BaseFeaturesExtractor):
 
         # GNN calculation
         x = self.conv1(node_attr, edge_index, edge_weight=edge_attr)  # [BN, node_hid]
+        x = self.act(x)
         x = self.conv2(x, edge_index, edge_weight=edge_attr)  # [BN, node_hid]
 
-        # Conver to SB3 format
+        # Convert to SB3 format
         return self.act(x).reshape(num_batch, -1)  # [B, N*node_hid]

@@ -7,7 +7,7 @@ from config.distribution import DistributionConfig
 TOPOLOGY = Literal["shk", "ba", "er", "rr", "complete"]
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SHKConfig:
     """shk (schultz-heitzh-kurths) parameters"""
 

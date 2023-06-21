@@ -1,3 +1,4 @@
+import inspect
 import warnings
 from functools import cache
 
@@ -5,10 +6,11 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from matplotlib.collections import PathCollection
+
 from config import DistributionConfig
 from config.grid import (GRID_CONFIG, PerturbationConfig, RebalanceConfig,
                          SwingConfig, TurnOnConfig)
-from matplotlib.collections import PathCollection
 
 from . import create, rebalance, turn_on
 from .graph import utils as gUtils
@@ -35,17 +37,33 @@ class Grid:
         couplings: npt.NDArray[np.float64] | None = None,
         node_types: list[NodeType] | None = None,
         nodes: list[Node] | None = None,
+        **kwargs,
     ) -> None:
         self._rng = rng
 
         if graph is None:
-            graph = create.create_graph(self._rng)
+            valid_kwargs = inspect.getfullargspec(create.create_graph).kwonlyargs
+            graph_kwargs = {k: kwargs.pop(k) for k in valid_kwargs}
+            graph = create.create_graph(self._rng, **graph_kwargs)
+
         if couplings is None:
-            couplings = create.create_couplings(graph.number_of_edges(), self._rng)
+            valid_kwargs = inspect.getfullargspec(create.create_couplings).kwonlyargs
+            couplings_kwargs = {k: kwargs.pop(k) for k in valid_kwargs}
+            couplings = create.create_couplings(
+                graph.number_of_edges(), self._rng, **couplings_kwargs
+            )
+
         if node_types is None:
-            node_types = create.create_node_types(graph.number_of_nodes(), self._rng)
+            valid_kwargs = inspect.getfullargspec(create.create_node_types).kwonlyargs
+            node_types_kwargs = {k: kwargs.pop(k) for k in valid_kwargs}
+            node_types = create.create_node_types(
+                graph.number_of_nodes(), self._rng, **node_types_kwargs
+            )
+
         if nodes is None:
-            nodes = create.create_nodes(node_types, self._rng)
+            valid_kwargs = inspect.getfullargspec(create.create_nodes).kwonlyargs
+            nodes_kwargs = {k: kwargs.pop(k) for k in valid_kwargs}
+            nodes = create.create_nodes(node_types, self._rng, **nodes_kwargs)
 
         self.validate_graph_couplings(graph, couplings)
         self.validate_graph_node_types(graph, node_types)
@@ -278,7 +296,7 @@ class Grid:
 
     def turn_on(
         self,
-        config: TurnOnConfig = GRID_CONFIG.turn_on,
+        config: TurnOnConfig | None = None,
         num_active_units: list[int] | npt.NDArray[np.int64] | None = None,
     ) -> None:
         """
@@ -289,6 +307,8 @@ class Grid:
         num_active_units: [N, ], Only used when turn on strategy is manual.
                           Number of active units of each nodes, larger than 1
         """
+        if config is None:
+            config = GRID_CONFIG.turn_on
         if self._is_on:
             warnings.warn(
                 "Grid is already online. Turn off the grid first.", stacklevel=2
@@ -360,7 +380,7 @@ class Grid:
 
     # ----------------------- Power Perturbation -----------------------
     def mark_perturbations(
-        self, config: PerturbationConfig | int = GRID_CONFIG.perturbation
+        self, config: PerturbationConfig | int | None = None
     ) -> npt.NDArray[np.int64]:
         """
         Mark direction and size of perturbation of each consumers/renewables
@@ -374,6 +394,11 @@ class Grid:
             0 : node will not be perturbated
             +p : node will be increased p times
         """
+        if config is None:
+            config = GRID_CONFIG.perturbation
+        elif isinstance(config, int):
+            config = PerturbationConfig(size=config)
+
         if self.power_imbalance != 0:
             warnings.warn(
                 f"Grid is already in power imbalance state. Rebalance it first",
@@ -383,9 +408,6 @@ class Grid:
         if not self._is_on:
             warnings.warn("Grid is currently offline.", stacklevel=2)
             return np.array([])
-
-        if isinstance(config, int):
-            config = PerturbationConfig(size=config)
 
         # Candidates which can be pertubated: consumer, renewables
         candidates = self.is_consumer + self.is_renewable

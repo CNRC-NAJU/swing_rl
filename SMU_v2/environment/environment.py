@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 import gymnasium as gym
 import gymnasium.spaces as spaces
@@ -86,7 +86,7 @@ class Environment(gym.Env):
 
     @staticmethod
     def find_steady_state(
-        grid: Grid, config: SwingConfig = GRID_CONFIG.steady, **kwargs
+        grid: Grid, config: SwingConfig | None = None, **kwargs
     ) -> tuple[arr64, arr64] | tuple[None, None]:
         """
         Find the steady state of grid. If not found, return None
@@ -94,11 +94,15 @@ class Environment(gym.Env):
         Args
         grid: target grid to find steady state
         config: swing configuration for finding steady state
+        kwargs: passed to grid.run
 
         Return
         phase: [N, ]. Steady phase
         dphase: [N, ]. Steady dphase
         """
+        if config is None:
+            config = GRID_CONFIG.steady
+
         phases, dphases = grid.run(config=config, **kwargs)
         simulation_time = (len(phases) - 1) * config.dt
 
@@ -220,10 +224,11 @@ class Environment(gym.Env):
 
     @staticmethod
     def set_observation_space(
-        num_nodes: int,
-        num_edges: int,
-        config: ObservationConfig = RL_CONFIG.observation,
+        num_nodes: int, num_edges: int, config: ObservationConfig | None = None
     ) -> spaces.Dict:
+        if config is None:
+            config = RL_CONFIG.observation
+
         observation_space: dict[OBSERVATION, spaces.Space] = {}
         empty_space = spaces.Box(0, 0, (0,))
 
@@ -263,11 +268,8 @@ class Environment(gym.Env):
         )
 
         # Perturbation: unlimited
-        observation_space["perturbation"] = (
-            spaces.Box(-np.inf, np.inf, (num_nodes,))
-            if config.perturbation
-            else empty_space
-        )
+        assert config.perturbation
+        observation_space["perturbation"] = spaces.Box(-np.inf, np.inf, (num_nodes,))
 
         # Edge list
         assert config.edge_list
@@ -282,19 +284,24 @@ class Environment(gym.Env):
         return spaces.Dict(observation_space)
 
     def observe(
-        self, config: ObservationConfig = RL_CONFIG.observation
-    ) -> dict[str, Any]:
+        self, config: ObservationConfig | None = None
+    ) -> dict[str, npt.NDArray[np.int64 | np.float32]]:
         def normalize_phase(phase: arr64) -> arr64:
             """Normalize phase into [-pi, pi)"""
             return (phase + np.pi) % (2 * np.pi) - np.pi
 
-        observation: dict[OBSERVATION, Any] = {}
+        if config is None:
+            config = RL_CONFIG.observation
+
+        observation: dict[OBSERVATION, npt.NDArray[np.int64 | np.float32]] = {
+            obs: np.array([]) for obs in get_args(OBSERVATION)
+        }
         if config.node_type:
             observation["node_type"] = np.array(
                 [node_type.value for node_type in self.grid.node_types], dtype=np.int64
             )
         if config.phase:
-            observation["phase"] = normalize_phase(self.steady_phase.astype(np.float32))
+            observation["phase"] = normalize_phase(self.steady_phase).astype(np.float32)
         if config.dphase:
             observation["dphase"] = self.steady_dphase.astype(np.float32)
         if config.mass:

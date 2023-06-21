@@ -15,10 +15,10 @@ from .sample import sample, sample_restricted_tot
 def create_graph(
     rng: np.random.Generator,
     *,
-    num_nodes_distribution: DistributionConfig = GRID_CONFIG.graph.num_nodes_distribution,
-    mean_degree_distribution: DistributionConfig = GRID_CONFIG.graph.mean_degree_distribution,
-    topology: TOPOLOGY = GRID_CONFIG.graph.topology,
-    shk: SHKConfig = GRID_CONFIG.graph.shk,
+    num_nodes_distribution: DistributionConfig | None = None,
+    mean_degree_distribution: DistributionConfig | None = None,
+    topology: TOPOLOGY | None = None,
+    shk: SHKConfig | None = None,
 ) -> nx.Graph:
     """
     Create graph
@@ -30,6 +30,14 @@ def create_graph(
     topology: which topology to use
     shk: Used only when topology is "shk"
     """
+    if num_nodes_distribution is None:
+        num_nodes_distribution = GRID_CONFIG.graph.num_nodes_distribution
+    if mean_degree_distribution is None:
+        mean_degree_distribution = GRID_CONFIG.graph.mean_degree_distribution
+    if topology is None:
+        topology = GRID_CONFIG.graph.topology
+    if shk is None:
+        shk = GRID_CONFIG.graph.shk
 
     # Randomly select number of nodes
     distribution = num_nodes_distribution
@@ -62,7 +70,7 @@ def create_couplings(
     num_edges: int,
     rng: np.random.Generator,
     *,
-    coupling_distribution: DistributionConfig = GRID_CONFIG.coupling_distribution,
+    coupling_distribution: DistributionConfig | None = None,
 ) -> npt.NDArray[np.float64]:
     """Create couplings of each edges
     Args
@@ -73,6 +81,9 @@ def create_couplings(
     Return
     coupling constant: [num_edges, ], random couplings following given distribution
     """
+    if coupling_distribution is None:
+        coupling_distribution = GRID_CONFIG.coupling_distribution
+
     return sample(
         coupling_distribution,
         num_edges,
@@ -86,7 +97,7 @@ def create_node_types(
     num_nodes: int,
     rng: np.random.Generator,
     *,
-    num_ratio: NumRatioConfig | dict[str, float] = GRID_CONFIG.num_ratio,
+    num_ratio: NumRatioConfig | dict[str, float] | None = None,
 ) -> list[NodeType]:
     """Create list of node types, following proper number ratios
     Args
@@ -97,7 +108,9 @@ def create_node_types(
     Return
     node_types: [num_nodes, ], types of each node
     """
-    if isinstance(num_ratio, dict):
+    if num_ratio is None:
+        num_ratio = GRID_CONFIG.num_ratio
+    elif isinstance(num_ratio, dict):
         assert list(num_ratio.keys()) == ["generator", "renewable", "consumer", "sink"]
         num_ratio = NumRatioConfig(**num_ratio)
 
@@ -126,14 +139,14 @@ def create_nodes(
     node_types: list[NodeType],
     rng: np.random.Generator,
     *,
-    consumer_capacity_distribution: DistributionConfig = GRID_CONFIG.consumer_capacity_distribution,
-    generator_spare: float = GRID_CONFIG.generator_spare,
-    generator_capacity_distribution: DistributionConfig = GRID_CONFIG.generator_capacity_distribution,
-    renewable_capacity_distribution: DistributionConfig = GRID_CONFIG.renewable_capacity_distribution,
-    renewable_mass_distribution: DistributionConfig = GRID_CONFIG.renewable_mass_distribution,
-    sink_capacity_distribution: DistributionConfig = GRID_CONFIG.sink_capacity_distribution,
-    source_ratio: float = GRID_CONFIG.source_ratio,
-    sink_spare: float = GRID_CONFIG.sink_spare,
+    consumer_capacity_distribution: DistributionConfig | None = None,
+    generator_spare: float | None = None,
+    generator_capacity_distribution: DistributionConfig | None = None,
+    renewable_capacity_distribution: DistributionConfig | None = None,
+    renewable_mass_distribution: DistributionConfig | None = None,
+    sink_capacity_distribution: DistributionConfig | None = None,
+    source_ratio: float | None = None,
+    sink_spare: float | None = None,
 ) -> list[Node]:
     """Create list of nodes, following proper configurations and given node types
     Args
@@ -143,6 +156,23 @@ def create_nodes(
     Return
     nodes: [N, ], node object
     """
+    if consumer_capacity_distribution is None:
+        consumer_capacity_distribution = GRID_CONFIG.consumer_capacity_distribution
+    if generator_spare is None:
+        generator_spare = GRID_CONFIG.generator_spare
+    if generator_capacity_distribution is None:
+        generator_capacity_distribution = GRID_CONFIG.generator_capacity_distribution
+    if renewable_capacity_distribution is None:
+        renewable_capacity_distribution = GRID_CONFIG.renewable_capacity_distribution
+    if renewable_mass_distribution is None:
+        renewable_mass_distribution = GRID_CONFIG.renewable_mass_distribution
+    if sink_capacity_distribution is None:
+        sink_capacity_distribution = GRID_CONFIG.sink_capacity_distribution
+    if source_ratio is None:
+        source_ratio = GRID_CONFIG.source_ratio
+    if sink_spare is None:
+        sink_spare = GRID_CONFIG.sink_spare
+
     # Create consumers
     num_consumers = sum(node_type is NodeType.CONSUMER for node_type in node_types)
     consumers = __create_consumers(num_consumers, consumer_capacity_distribution, rng)

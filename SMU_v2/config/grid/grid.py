@@ -45,7 +45,7 @@ class GridConfig:
     )
 
     # Node types configuration
-    num_ratio: NumRatioConfig = NumRatioConfig()
+    _num_ratio: NumRatioConfig = NumRatioConfig()
 
     # Consumer configuration
     consumer: UnitConfig = UnitConfig(_power=-1, mass=1.0, gamma=1.0)
@@ -81,10 +81,7 @@ class GridConfig:
     turn_on: TurnOnConfig = TurnOnConfig()
     perturbation: PerturbationConfig = PerturbationConfig()
     steady: SwingConfig = SwingConfig(
-        _name="rk4",
-        dt=1e-2,
-        max_time=40.0,
-        monitor=MonitorConfig("inside", 1e-3)
+        _name="rk4", dt=1e-2, max_time=40.0, monitor=MonitorConfig("inside", 1e-3)
     )
 
     def __post_init__(self) -> None:
@@ -114,7 +111,7 @@ class GridConfig:
     def from_dict(self, config: dict[str, Any]) -> None:
         # Pop sub configurations
         self.graph.from_dict(config.pop("graph"))
-        self.num_ratio = NumRatioConfig(**config.pop("num_ratio"))
+        self._num_ratio = NumRatioConfig(**config.pop("num_ratio"))
 
         self.consumer.from_dict(config.pop("consumer"))
         self.generator.from_dict(config.pop("generator"))
@@ -149,6 +146,23 @@ class GridConfig:
         for key, value in config.items():
             assert hasattr(self, key)
             setattr(self, key, value)
+
+    # ------------------------ Num ratio ----------------------------
+    @property
+    def num_ratio(self) -> NumRatioConfig:
+        return self._num_ratio
+
+    @num_ratio.setter
+    def num_ratio(self, num_ratio: dict[str, float] | NumRatioConfig) -> None:
+        if isinstance(num_ratio, dict):
+            assert list(num_ratio.keys()) == [
+                "generator",
+                "renewable",
+                "consumer",
+                "sink",
+            ]
+            num_ratio = NumRatioConfig(**num_ratio)
+        self._num_ratio = num_ratio
 
     # --------------------- Capacity distribution -------------------------
     @staticmethod

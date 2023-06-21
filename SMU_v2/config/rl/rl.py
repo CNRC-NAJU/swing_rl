@@ -12,10 +12,7 @@ from .reward import RewardConfig
 class RLConfig:
     # Trajectory for checking failed nodes, calculating reward
     swing: SwingConfig = SwingConfig(
-        _name="rk4",
-        dt=1e-2,
-        max_time=2.0,
-        monitor=MonitorConfig("outside", 1.0)
+        _name="rk4", dt=1e-2, max_time=2.0, monitor=MonitorConfig("outside", 1.0)
     )
 
     # Reward functions
@@ -33,7 +30,7 @@ class RLConfig:
     )
 
     # Reset, observation, agent
-    reset: ResetConfig = ResetConfig()
+    _reset: ResetConfig = ResetConfig()
     observation: ObservationConfig = ObservationConfig()
     agent: AgentConfig = AgentConfig()
 
@@ -58,6 +55,18 @@ class RLConfig:
         for key, value in config.items():
             assert hasattr(self, key)
             setattr(self, key, value)
+
+    # --------------------------- Reset ------------------------------
+    @property
+    def reset(self) -> ResetConfig:
+        return self._reset
+
+    @reset.setter
+    def reset(self, reset: dict[str, bool] | ResetConfig) -> None:
+        if isinstance(reset, dict):
+            assert list(reset.keys()) == ["graph", "coupling", "node_type", "node"]
+            reset = ResetConfig(**reset)
+        self._reset = reset
 
 
 RL_CONFIG = RLConfig()

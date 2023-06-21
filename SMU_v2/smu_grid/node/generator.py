@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from config.grid import GRID_CONFIG
+from config.grid import GRID_CONFIG, UnitConfig
 
 from .node import Node
 from .type import NodeType
@@ -9,18 +9,15 @@ from .type import NodeType
 class Generator(Node):
     __slots__ = []
 
-    def __init__(
-        self,
-        max_units: int,
-        unit_power: int = GRID_CONFIG.generator.power,
-        unit_mass: float = GRID_CONFIG.generator.mass,
-        unit_gamma: float = GRID_CONFIG.generator.gamma,
-    ) -> None:
+    def __init__(self, max_units: int, config: UnitConfig | None = None) -> None:
         super().__init__(max_units)
 
-        self._unit_power = unit_power
-        self._unit_mass = unit_mass
-        self._unit_gamma = unit_gamma
+        if config is None:
+            config = GRID_CONFIG.generator
+
+        self._unit_power = config.power
+        self._unit_mass = config.mass
+        self._unit_gamma = config.gamma
 
     @classmethod
     def from_capacity(cls, capacity: int) -> Generator:
