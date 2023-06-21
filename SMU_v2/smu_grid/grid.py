@@ -43,26 +43,26 @@ class Grid:
 
         if graph is None:
             valid_kwargs = inspect.getfullargspec(create.create_graph).kwonlyargs
-            graph_kwargs = {k: kwargs.pop(k) for k in valid_kwargs}
+            graph_kwargs = {k: kwargs.pop(k) for k in kwargs if k in valid_kwargs}
             graph = create.create_graph(self._rng, **graph_kwargs)
 
         if couplings is None:
             valid_kwargs = inspect.getfullargspec(create.create_couplings).kwonlyargs
-            couplings_kwargs = {k: kwargs.pop(k) for k in valid_kwargs}
+            couplings_kwargs = {k: kwargs.pop(k) for k in kwargs if k in valid_kwargs}
             couplings = create.create_couplings(
                 graph.number_of_edges(), self._rng, **couplings_kwargs
             )
 
         if node_types is None:
             valid_kwargs = inspect.getfullargspec(create.create_node_types).kwonlyargs
-            node_types_kwargs = {k: kwargs.pop(k) for k in valid_kwargs}
+            node_types_kwargs = {k: kwargs.pop(k) for k in kwargs if k in valid_kwargs}
             node_types = create.create_node_types(
                 graph.number_of_nodes(), self._rng, **node_types_kwargs
             )
 
         if nodes is None:
             valid_kwargs = inspect.getfullargspec(create.create_nodes).kwonlyargs
-            nodes_kwargs = {k: kwargs.pop(k) for k in valid_kwargs}
+            nodes_kwargs = {k: kwargs.pop(k) for k in kwargs if k in valid_kwargs}
             nodes = create.create_nodes(node_types, self._rng, **nodes_kwargs)
 
         self.validate_graph_couplings(graph, couplings)
