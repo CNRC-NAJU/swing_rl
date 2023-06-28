@@ -1,5 +1,5 @@
-from dataclasses import asdict, dataclass
-from typing import Any, Literal, get_args
+from dataclasses import dataclass
+from typing import Literal, get_args
 
 DISTRIBUTION_NAME = Literal["uniform", "normal", "uniform_wo_avg", "normal_wo_avg"]
 

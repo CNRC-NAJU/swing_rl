@@ -135,8 +135,12 @@ class Environment(gym.Env):
         action *= self.grid.is_generator + self.grid.is_sink  # Only controllable nodes
         self.log(f"Step: after pre-processing, action={np.round(action, 2)}", 2)
 
-        # Rebalance the grid according to the rebalance configuration, given action
-        balanced = self.grid.rebalance(RL_CONFIG.train_rebalance, action)
+        if action.sum() == 0:
+            # When given action is all zero, skip rebalancing and truncate
+            balanced = False
+        else:
+            # Rebalance the grid according to the rebalance configuration, given action
+            balanced = self.grid.rebalance(RL_CONFIG.train_rebalance, action)
 
         if not balanced:
             # Rebalance failed. Dummy dphases
