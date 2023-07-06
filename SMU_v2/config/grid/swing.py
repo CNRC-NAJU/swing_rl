@@ -45,6 +45,8 @@ class SwingConfig:
         assert self.validate_solver_name(self._name)
 
     def from_dict(self, config: dict[str, Any]) -> None:
+        self.monitor.from_dict(config.pop("monitor"))
+
         for key, value in config.items():
             assert hasattr(self, key)
             setattr(self, key, value)

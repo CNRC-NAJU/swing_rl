@@ -24,10 +24,10 @@ class GraphConfig:
 
     # Distribution of networks
     _num_nodes_distribution: DistributionConfig = DistributionConfig(
-        name="uniform", low=10.0, high=10.0
+        name="uniform", low=20.0, high=20.0
     )
     _mean_degree_distribution: DistributionConfig = DistributionConfig(
-        name="uniform", low=4.0, high=4.0
+        name="uniform", low=8.0, high=8.0
     )
 
     # SHK

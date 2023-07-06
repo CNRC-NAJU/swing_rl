@@ -17,10 +17,10 @@ from .unit import RenewableUnitConfig, UnitConfig
 class NumRatioConfig:
     """Number ratio of each node types"""
 
-    consumer: float = 0.3
-    generator: float = 0.4
+    consumer: float = 0.5
+    generator: float = 0.1
     renewable: float = 0.2
-    sink: float = 0.1
+    sink: float = 0.2
 
     def __post_init__(self) -> None:
         assert self.validate_num_ratio(
@@ -41,7 +41,7 @@ class GridConfig:
 
     # Coupling constants configuration
     _coupling_distribution: DistributionConfig = DistributionConfig(
-        name="uniform", low=10.0, high=10.0
+        name="uniform", low=50.0, high=50.0
     )
 
     # Node types configuration
@@ -50,24 +50,24 @@ class GridConfig:
     # Consumer configuration
     consumer: UnitConfig = UnitConfig(_power=-1, mass=1.0, gamma=1.0)
     _consumer_capacity_distribution: DistributionConfig = DistributionConfig(
-        name="uniform", low=10.0, high=10.0
+        name="uniform", low=6.0, high=6.0
     )
 
     # Generator configuration
     generator: UnitConfig = UnitConfig(_power=1, mass=1.0, gamma=1.0)
-    _generator_spare: float = 1.1  # (generator capacity) = spare * (consumer capacity)
+    _generator_spare: float = 1.5  # (generator capacity) = spare * (consumer capacity)
     _generator_capacity_distribution: DistributionConfig = DistributionConfig(
         name="uniform_wo_avg", low=2.0, delta=4.0
     )
 
     # Renewable configuration
     renewable: RenewableUnitConfig = RenewableUnitConfig(_power=1, gamma_mass_ratio=1.0)
-    source_ratio: float = 0.25  # (renewable capacity) = ratio * (generator capacity)
+    source_ratio: float = 0.2  # (renewable capacity) = ratio * (generator capacity)
     _renewable_capacity_distribution: DistributionConfig = DistributionConfig(
         name="uniform_wo_avg", low=2.0, delta=4.0
     )
     _renewable_mass_distribution: DistributionConfig = DistributionConfig(
-        name="uniform", low=0.1, high=0.1
+        name="uniform", low=1.0, high=1.0
     )
 
     # Sink configuration
@@ -81,7 +81,7 @@ class GridConfig:
     turn_on: TurnOnConfig = TurnOnConfig()
     perturbation: PerturbationConfig = PerturbationConfig()
     steady: SwingConfig = SwingConfig(
-        _name="rk4", dt=1e-2, max_time=40.0, monitor=MonitorConfig("inside", 1e-3)
+        _name="rk4", dt=1e-2, max_time=40.0, monitor=MonitorConfig("inside", 1e-4)
     )
 
     def __post_init__(self) -> None:
@@ -237,7 +237,7 @@ class GridConfig:
         if not self.validate_mass_distribution(distribution):
             warnings.warn("Invalid mass distribution. Ignore", stacklevel=2)
             return
-        self._renewable_capacity_distribution = distribution
+        self._renewable_mass_distribution = distribution
 
     @staticmethod
     def validate_coupling_distribution(distribution: DistributionConfig) -> bool:

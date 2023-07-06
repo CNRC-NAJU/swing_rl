@@ -441,8 +441,7 @@ class Grid:
                 break
 
         # Specify direction of the perturbation
-        (perturbed_indices,) = perturbation.nonzero()
-        for idx in perturbed_indices:
+        for (idx,) in perturbation.nonzero():
             node, size = self._nodes[idx], perturbation[idx]
 
             # Check edge case: when node should be perturbated in certain direction
@@ -450,7 +449,7 @@ class Grid:
                 # Cannot increase
                 perturbation[idx] *= -1
                 continue
-            elif size < node.headroom_decrease:
+            elif size > node.headroom_decrease:
                 # Cannot decrease
                 continue
 

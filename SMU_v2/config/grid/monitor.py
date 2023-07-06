@@ -1,6 +1,6 @@
 import warnings
 from dataclasses import dataclass
-from typing import Literal, get_args
+from typing import Any, Literal, get_args
 
 MONITOR_NAME = Literal["null", "inside", "outside"]
 
@@ -27,3 +27,8 @@ class MonitorConfig:
             )
             return
         self._name = name
+
+    def from_dict(self, config: dict[str, Any]) -> None:
+        for key, value in config.items():
+            assert hasattr(self, key)
+            setattr(self, key, value)

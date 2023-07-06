@@ -3,12 +3,12 @@ grid:
     topology: shk
     num_nodes_distribution:
       name: uniform
-      low: 10.0
-      high: 10.0
+      low: 20.0
+      high: 20.0
     mean_degree_distribution:
       name: uniform
-      low: 4.0
-      high: 4.0
+      low: 8.0
+      high: 8.0
     shk:
       p: 0.2
       q: 0.3
@@ -17,26 +17,26 @@ grid:
       initial: 1
   coupling_distribution:
     name: uniform
-    low: 10.0
-    high: 10.0
+    low: 50.0
+    high: 50.0
   num_ratio:
-    consumer: 0.3
-    generator: 0.4
+    consumer: 0.5
+    generator: 0.1
     renewable: 0.2
-    sink: 0.1
+    sink: 0.2
   consumer:
     power: -1
     mass: 1.0
     gamma: 1.0
   consumer_capacity_distribution:
     name: uniform
-    low: 10.0
-    high: 10.0
+    low: 6.0
+    high: 6.0
   generator:
     power: 1
     mass: 1.0
     gamma: 1.0
-  generator_spare: 1.0
+  generator_spare: 1.5
   generator_capacity_distribution:
     name: uniform_wo_avg
     low: 2.0
@@ -44,15 +44,15 @@ grid:
   renewable:
     power: 1
     gamma_mass_ratio: 1.0
-  source_ratio: 0.25
+  source_ratio: 0.2
   renewable_capacity_distribution:
     name: uniform_wo_avg
     low: 2.0
     delta: 4.0
   renewable_mass_distribution:
     name: uniform
-    low: 0.1
-    high: 0.1
+    low: 1.0
+    high: 1.0
   sink:
     power: -1
     mass: 1.0
@@ -76,7 +76,7 @@ grid:
     max_time: 40.0
     monitor:
       name: inside
-      threshold: 0.001
+      threshold: 0.0001
 rl:
   swing:
     name: rk4

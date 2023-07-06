@@ -35,8 +35,8 @@ class Renewable(Node):
 
     @property
     def mass(self) -> float:
-        return self._unit_mass
+        return self._active_units * self._unit_mass
 
     @property
     def gamma(self) -> float:
-        return self._unit_gamma
+        return self._active_units * self._unit_gamma
