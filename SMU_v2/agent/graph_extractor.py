@@ -4,6 +4,7 @@ import gymnasium.spaces as spaces
 import torch
 import torch.nn as nn
 import torch_geometric.nn as gnn
+from SMU_v1.config import observation
 from config.rl import OBSERVATION, RL_CONFIG, AgentConfig
 from smu_grid.node import NodeType
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
@@ -199,10 +200,11 @@ class GraphExtractor(BaseFeaturesExtractor):
     def forward(
         self, observations: OrderedDict[OBSERVATION, torch.Tensor]
     ) -> torch.Tensor:
+        num_batch, num_nodes = observations["node_type"].shape
+
         # Different edge_index value for each batch
         edge_index = observations["edge_list"].to(dtype=torch.int64)  # [B, 2, E]
-        num_batch = edge_index.shape[0]
-        edge_index += torch.arange(
+        edge_index += num_nodes * torch.arange(
             num_batch, dtype=torch.int64, device=edge_index.device
         ).reshape(-1, 1, 1)
 
