@@ -202,7 +202,9 @@ class GraphExtractor(BaseFeaturesExtractor):
         # Different edge_index value for each batch
         edge_index = observations["edge_list"].to(dtype=torch.int64)  # [B, 2, E]
         num_batch = edge_index.shape[0]
-        edge_index += torch.arange(num_batch, dtype=torch.int64).reshape(-1, 1, 1)
+        edge_index += torch.arange(
+            num_batch, dtype=torch.int64, device=edge_index.device
+        ).reshape(-1, 1, 1)
 
         # Encode node and edge attributes into higher dimension
         # [B, N, node_emb], [B, E, 1]
