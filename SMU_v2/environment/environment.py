@@ -233,7 +233,7 @@ class Environment(gym.Env):
         if config is None:
             config = RL_CONFIG.observation
 
-        observation_space: dict[OBSERVATION, spaces.Space] = {}
+        observation_space: dict[str, spaces.Space[Any]] = {}
         empty_space = spaces.Box(0, 0, (0,))
 
         # 4 types: generator/renewable/consumer/sink
@@ -297,7 +297,7 @@ class Environment(gym.Env):
         if config is None:
             config = RL_CONFIG.observation
 
-        observation: dict[OBSERVATION, npt.NDArray[np.int64 | np.float32]] = {
+        observation: dict[str, npt.NDArray[np.int64 | np.float32]] = {
             obs: np.array([]) for obs in get_args(OBSERVATION)
         }
         if config.node_type:
