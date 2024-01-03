@@ -7,7 +7,7 @@ from typing import Any
 # generator_temporary_unit_gamma: float = 10.0
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True, kw_only=True)
 class UnitConfig:
     """
     Unit values of consumer/generator/sink node
@@ -35,7 +35,7 @@ class UnitConfig:
         return
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True, kw_only=True)
 class RenewableUnitConfig:
     """
     Unit values of renewable node

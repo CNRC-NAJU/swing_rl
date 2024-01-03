@@ -1,5 +1,5 @@
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -37,7 +37,7 @@ class NumRatioConfig:
 @dataclass(slots=True)
 class GridConfig:
     # Graph configuration
-    graph: GraphConfig = GraphConfig()
+    graph: GraphConfig = field(default_factory=GraphConfig)
 
     # Coupling constants configuration
     _coupling_distribution: DistributionConfig = DistributionConfig(
@@ -78,10 +78,12 @@ class GridConfig:
     )
 
     # Turn on, perturbation, Steady state
-    turn_on: TurnOnConfig = TurnOnConfig()
-    perturbation: PerturbationConfig = PerturbationConfig()
-    steady: SwingConfig = SwingConfig(
-        _name="rk4", dt=1e-2, max_time=40.0, monitor=MonitorConfig("inside", 1e-4)
+    turn_on: TurnOnConfig = field(default_factory=TurnOnConfig)
+    perturbation: PerturbationConfig = field(default_factory=PerturbationConfig)
+    steady: SwingConfig = field(
+        default_factory=lambda: SwingConfig(
+            _name="rk4", dt=1e-2, max_time=40.0, monitor=MonitorConfig("inside", 1e-4)
+        )
     )
 
     def __post_init__(self) -> None:

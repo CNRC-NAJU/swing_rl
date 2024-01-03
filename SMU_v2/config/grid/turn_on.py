@@ -1,5 +1,5 @@
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, get_args
 
 from .rebalance import RebalanceConfig
@@ -31,7 +31,9 @@ class TurnOnConfig:
 
     _strategy: TURN_ON = "equal"
     ratio: float = 0.5
-    rebalance: RebalanceConfig = RebalanceConfig(_strategy="directed", max_trials=100)
+    rebalance: RebalanceConfig = field(
+        default_factory=lambda: RebalanceConfig(_strategy="directed", max_trials=100)
+    )
 
     def __post__init__(self) -> None:
         assert self.validate_strategy(self._strategy)

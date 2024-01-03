@@ -2,13 +2,13 @@ import inspect
 import warnings
 from functools import cache
 
-import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from config import DistributionConfig
 from config.grid import (GRID_CONFIG, PerturbationConfig, RebalanceConfig,
                          SwingConfig, TurnOnConfig)
+from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
 
 from . import create, rebalance, turn_on
@@ -85,7 +85,7 @@ class Grid:
         return "\n".join(f"Node {i} - {node}" for i, node in enumerate(self._nodes))
 
     # ----------------------- Plot -----------------------
-    def draw(self, ax: plt.Axes, cursors: bool = True, **kwargs) -> PathCollection:
+    def draw(self, ax: Axes, cursors: bool = True, **kwargs) -> PathCollection:
         """
         Draw current grid
 

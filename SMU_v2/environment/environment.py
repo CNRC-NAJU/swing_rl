@@ -24,7 +24,7 @@ class Environment(gym.Env):
     ) -> None:
         """
         grid: Initial grid where the environment will start.
-        rng: Random Number Generator \\
+        rng: Random Number Generator or seed of RNG \\
         verbose
             0: no logging
             1: basic logging
@@ -42,36 +42,26 @@ class Environment(gym.Env):
 
         # Random engine
         if isinstance(rng, np.random.Generator):
-            self.rng = rng
+            self.np_random = rng
         else:
-            self.rng = np.random.default_rng(rng)
-        self._np_random = self.rng  # Used in gym.Env
+            self.np_random = np.random.default_rng(rng)
 
-        # Grid and according steady state
-        trial = 0
-        while True:
-            trial += 1
-            steady_phase, steady_dphase = self.find_steady_state(grid)
-            if (steady_phase is not None) and (steady_dphase is not None):
-                break
-            grid = reset(grid, RL_CONFIG.reset)
-            grid.turn_on()
-
+        # Grid, steady state, perturbation variables
         self.grid = grid
-        self.steady_phase = steady_phase
-        self.steady_dphase = steady_dphase
-        self.marked = self.grid.mark_perturbations()
-        self.log(f"Initialization: Found steady state after {trial} trials", 1)
-        self.log(f"Initialization: perturbation will be {self.marked}", 2)
+        self.steady_phase: arr64
+        self.steady_dphase: arr64
+        self.marked: npt.NDArray[np.int64]
 
         # RL variables
-        self.num_steps = 0  # Current step inside the episode
+        self.num_steps: int  # Current step inside the episode
         self.reward_ftn = get_reward_ftn(RL_CONFIG.reward)
         self.reward_failed_ftn = get_reward_ftn(RL_CONFIG.reward_failed)
         self.reward_failed_rebalance_ftn = get_reward_ftn(
             RL_CONFIG.reward_failed_rebalance
         )
         self.reward_failed_steady_ftn = get_reward_ftn(RL_CONFIG.reward_failed_steady)
+
+        # Action, observation space
         self.action_space = self.set_action_space(self.grid.num_nodes)
         self.observation_space = self.set_observation_space(
             self.grid.num_nodes, self.grid.num_edges
@@ -149,8 +139,8 @@ class Environment(gym.Env):
             return (
                 self.observe(),  # observation
                 reward,  # reward
-                False,  # terminated
-                True,  # truncated
+                True,  # terminated
+                False,  # truncated
                 {},  # info
             )
 
@@ -164,7 +154,7 @@ class Environment(gym.Env):
             # Early stop the iteration: failed node exists
             # reward = self.reward_failed_ftn(dphases, RL_CONFIG.swing.dt)
             reward = self.reward_failed_ftn(dphases, simulation_time)
-            terminated, truncated = False, True
+            terminated, truncated = True, False
             self.log(f"Step: failed node exists. {reward=:.2e}", 1)
 
         else:
@@ -173,7 +163,7 @@ class Environment(gym.Env):
             if (steady_phase is None) or (steady_dphase is None):
                 # Can't find steady state for current grid configuration
                 reward = self.reward_failed_steady_ftn(dphases, RL_CONFIG.swing.dt)
-                terminated, truncated = False, True
+                terminated, truncated = True, False
                 self.log(f"Step: No steady state after rebalancing. {reward=:.2e}", 1)
 
             else:
@@ -181,18 +171,18 @@ class Environment(gym.Env):
                 self.steady_phase, self.steady_dphase = steady_phase, steady_dphase
                 self.num_steps += 1
 
-                terminated = self.num_steps == RL_CONFIG.num_steps_per_episode
-                truncated = False
+                terminated = False
+                truncated = self.num_steps == RL_CONFIG.num_steps_per_episode
                 self.log(f"Step: successfully finished rebalancing, {reward=:.2e}", 2)
 
         # Mark next perturbation if not truncated or terminated
-        if not terminated:
+        if not (terminated or truncated):
             self.marked = self.grid.mark_perturbations()
             self.log(f"Step: next perturbation will be {self.marked}", 2)
 
         return self.observe(), reward, terminated, truncated, {}
 
-    def reset(self) -> tuple[dict[str, Any], dict[str, Any]]:
+    def reset(self, seed: int | None = None) -> tuple[dict[str, Any], dict[str, Any]]:
         """Reset environments and returns to the initial observation
         Initial observation: 0 steps until failure, all nodes are not failed
 
@@ -200,6 +190,7 @@ class Environment(gym.Env):
         observation: element of observation_space
         info: nothing
         """
+        super().reset(seed=seed)  # self.np_random
         # Reset grid
         trial = 0
         while True:

@@ -1,5 +1,5 @@
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, get_args
 
 from .monitor import MonitorConfig
@@ -39,7 +39,7 @@ class SwingConfig:
     max_time: float = 2.0
 
     # Trajectory monitor
-    monitor: MonitorConfig = MonitorConfig()
+    monitor: MonitorConfig = field(default_factory=MonitorConfig)
 
     def __post__init__(self) -> None:
         assert self.validate_solver_name(self._name)

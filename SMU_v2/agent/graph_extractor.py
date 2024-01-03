@@ -4,7 +4,6 @@ import gymnasium.spaces as spaces
 import torch
 import torch.nn as nn
 import torch_geometric.nn as gnn
-from SMU_v1.config import observation
 from config.rl import OBSERVATION, RL_CONFIG, AgentConfig
 from smu_grid.node import NodeType
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor

@@ -1,5 +1,5 @@
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, get_args
 
 from config.distribution import DistributionConfig
@@ -31,7 +31,7 @@ class GraphConfig:
     )
 
     # SHK
-    shk: SHKConfig = SHKConfig()
+    shk: SHKConfig = field(default_factory=SHKConfig)
 
     def __post__init__(self) -> None:
         assert self.validate_topology(self._topology)

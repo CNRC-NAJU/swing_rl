@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -12,8 +12,8 @@ from .rl import RL_CONFIG, RLConfig
 
 @dataclass(slots=True)
 class Config:
-    grid: GridConfig = GRID_CONFIG
-    rl: RLConfig = RL_CONFIG
+    grid: GridConfig = field(default_factory=lambda: GRID_CONFIG)
+    rl: RLConfig = field(default_factory=lambda: RL_CONFIG)
 
     @property
     def dict(self) -> dict[str, Any]:
