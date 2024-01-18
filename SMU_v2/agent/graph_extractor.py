@@ -5,8 +5,9 @@ import torch
 import torch.nn as nn
 import torch_geometric.nn as gnn
 from config.rl import OBSERVATION, RL_CONFIG, AgentConfig
+# from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from SB3.policy import BaseFeaturesExtractor
 from smu_grid.node import NodeType
-from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 from .activation import get_activation
 from .mlp import MLP
