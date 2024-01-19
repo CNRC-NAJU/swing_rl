@@ -174,7 +174,7 @@ class PPO:
         self.ep_success_buffer: deque | None = None
 
         # For logging (and TD3 delayed updates)
-        self._n_updates = 0  # type: int
+        self._n_updates = 0
 
         # Whether the user passed a custom logger or not
         self._custom_logger = False
@@ -250,7 +250,7 @@ class PPO:
 
         self.rollout_buffer = self.rollout_buffer_class(
             self.n_steps,
-            self.observation_space,  # type: ignore[arg-type]
+            self.observation_space,
             self.action_space,
             device=self.device,
             gamma=self.gamma,
@@ -258,7 +258,7 @@ class PPO:
             n_envs=self.n_envs,
             **self.rollout_buffer_kwargs,
         )
-        self.policy = self.policy_class(  # type: ignore[assignment]
+        self.policy = self.policy_class(
             self.observation_space,
             self.action_space,
             self.lr_schedule,
@@ -366,14 +366,15 @@ class PPO:
                         infos[idx]["terminal_observation"]
                     )[0]
                     with torch.no_grad():
-                        terminal_value = self.policy.predict_values(terminal_obs)[0]  # type: ignore[arg-type]
+                        terminal_value = self.policy.predict_values(terminal_obs)[0]
                     rewards[idx] += self.gamma * terminal_value
 
+            assert self._last_episode_starts is not None
             rollout_buffer.add(
-                self._last_obs,  # type: ignore[arg-type]
+                self._last_obs,
                 actions,
                 rewards,
-                self._last_episode_starts,  # type: ignore[arg-type]
+                self._last_episode_starts,
                 values,
                 log_probs,
             )
@@ -403,11 +404,13 @@ class PPO:
         self._update_learning_rate(self.policy.optimizer)
 
         # Compute current clip range
-        clip_range = self.clip_range(self._current_progress_remaining)  # type: ignore[operator]
+        self.clip_range = cast(Schedule, self.clip_range)
+        clip_range = self.clip_range(self._current_progress_remaining)
 
         # Optional: clip range for the value function
         if self.clip_range_vf is not None:
-            clip_range_vf = self.clip_range_vf(self._current_progress_remaining)  # type: ignore[operator]
+            self.clip_range_vf = cast(Schedule, self.clip_range_vf)
+            clip_range_vf = self.clip_range_vf(self._current_progress_remaining)
         else:
             clip_range_vf = None
 
@@ -512,7 +515,7 @@ class PPO:
                 self.policy.optimizer.zero_grad()
                 loss.backward()
                 # Clip grad norm
-                torch.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)  # type: ignore[union-attr]
+                torch.nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)  # type: ignore
                 self.policy.optimizer.step()
 
             self._n_updates += 1
@@ -748,7 +751,6 @@ class PPO:
             for param_group in optimizer.param_groups:
                 param_group["lr"] = learning_rate
 
-
     def _excluded_save_params(self) -> list[str]:
         """
         Returns the names of the parameters that should be excluded from being
@@ -851,7 +853,7 @@ class PPO:
         # Avoid resetting the environment when calling ``.learn()`` consecutive times
         if reset_num_timesteps or self._last_obs is None:
             assert self.env is not None
-            self._last_obs = self.env.reset()  # type: ignore[assignment]
+            self._last_obs = self.env.reset()
             self._last_episode_starts = np.ones((self.env.num_envs,), dtype=bool)
             # Retrieve unnormalized observation for saving into the buffer
             if self._vec_normalize_env is not None:

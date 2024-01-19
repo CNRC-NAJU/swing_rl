@@ -13,9 +13,10 @@ from typing import Any
 
 import numpy as np
 from gymnasium import spaces
-from SB3.vec_env.base_vec_env import VecEnv, VecEnvWrapper
 from SB3.type_aliases import VecEnvObs, VecEnvStepReturn
-from SB3.vec_env.utils import check_shape_equal
+
+from .base_vec_env import VecEnv, VecEnvWrapper
+from .utils import check_shape_equal
 
 
 class RunningMeanStd:
@@ -135,7 +136,10 @@ class VecNormalize(VecEnvWrapper):
                     )
 
             self.obs_spaces = self.observation_space.spaces
-            self.obs_rms = {key: RunningMeanStd(shape=self.obs_spaces[key].shape) for key in self.norm_obs_keys}  # type: ignore[arg-type, union-attr]
+            self.obs_rms = {
+                key: RunningMeanStd(shape=self.obs_spaces[key].shape)  # type: ignore
+                for key in self.norm_obs_keys
+            }
 
         self.ret_rms = RunningMeanStd()
         self.clip_obs = clip_obs

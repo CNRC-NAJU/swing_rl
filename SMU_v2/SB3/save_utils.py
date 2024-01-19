@@ -27,10 +27,12 @@ def recursive_getattr(obj: Any, attr: str, *args) -> Any:
     :param attr: Attribute to retrieve
     :return: The attribute
     """
+
     def _getattr(obj: Any, attr: str) -> Any:
         return getattr(obj, attr, *args)
 
     return functools.reduce(_getattr, [obj, *attr.split(".")])
+
 
 def recursive_setattr(obj: Any, attr: str, val: Any) -> None:
     """
@@ -228,6 +230,7 @@ def open_path(
         raise ValueError(f"Expected a {error_msg} file.")
     return path
 
+
 def load_from_zip_file(
     load_path: str | Path | io.BufferedIOBase,
     load_data: bool = True,
@@ -324,6 +327,7 @@ def load_from_zip_file(
         if isinstance(load_path, (str, Path)):
             file.close()
     return data, params, pytorch_variables
+
 
 def save_to_zip_file(
     save_path: str | Path | io.BufferedIOBase,

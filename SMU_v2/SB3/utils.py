@@ -86,6 +86,7 @@ def safe_mean(arr: np.ndarray | list | deque) -> float:
     """
     return np.nan if len(arr) == 0 else float(np.mean(arr))
 
+
 def explained_variance(y_pred: np.ndarray, y_true: np.ndarray) -> float:
     """
     Computes fraction of variance that ypred explains about y.
@@ -116,6 +117,6 @@ def get_schedule_fn(value_schedule: Schedule | float | int) -> Schedule:
     # If the passed schedule is a float, create a constant function
     if isinstance(value_schedule, (float, int)):
         # Cast to float to avoid errors
-        return lambda _ : float(value_schedule)
+        return lambda _: float(value_schedule)
     else:
         return value_schedule

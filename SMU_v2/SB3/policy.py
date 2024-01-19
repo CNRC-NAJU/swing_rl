@@ -389,7 +389,9 @@ class MultiInputActorCriticPolicy(nn.Module):
                 module.apply(functools.partial(self.init_weights, gain=gain))
 
         # Setup optimizer with initial learning rate
-        self.optimizer = self.optimizer_class(self.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs)  # type: ignore[call-arg]
+        self.optimizer = self.optimizer_class(
+            self.parameters(), lr=lr_schedule(1), **self.optimizer_kwargs  # type: ignore[call-arg]
+        )
 
     def _extract_features(
         self, obs: PyTorchObs, features_extractor: BaseFeaturesExtractor

@@ -4,7 +4,7 @@ DictRolloutBuffer implementation of SB3
 - #! comments are from HY
 """
 
-from typing import Generator
+from typing import Generator, cast
 
 import numpy as np
 import torch
@@ -65,7 +65,9 @@ class DictRolloutBuffer:
         self.buffer_size = buffer_size
         self.observation_space = observation_space
         self.action_space = action_space
-        self.obs_shape = get_obs_shape(observation_space)  # type: ignore[assignment]
+        self.obs_shape = cast(
+            dict[str, tuple[int, ...]], get_obs_shape(observation_space)
+        )
         assert isinstance(self.obs_shape, dict)
 
         self.action_dim = get_action_dim(action_space)

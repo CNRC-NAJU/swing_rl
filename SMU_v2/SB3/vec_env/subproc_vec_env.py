@@ -73,7 +73,7 @@ def _worker(
             elif cmd == "get_attr":
                 remote.send(getattr(env, data))
             elif cmd == "set_attr":
-                remote.send(setattr(env, data[0], data[1]))  # type: ignore[func-returns-value]
+                remote.send(setattr(env, data[0], data[1]))
             elif cmd == "is_wrapped":
                 remote.send(is_wrapped(env, data))
             else:
@@ -148,7 +148,12 @@ class SubprocVecEnv(VecEnv):
         self.waiting = False
         obs, rews, dones, infos, self.reset_infos = zip(*results)
 
-        return flatten_obs(obs, self.observation_space), np.stack(rews), np.stack(dones), infos  # type: ignore[return-value]
+        return (
+            flatten_obs(obs, self.observation_space),
+            np.stack(rews),
+            np.stack(dones),
+            infos,
+        )
 
     def reset(self) -> VecEnvObs:
         #! Reset for every environments
